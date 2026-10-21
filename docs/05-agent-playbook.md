@@ -1,0 +1,102 @@
+# 给 agent 的操作手册
+
+这一页是给**要直接驱动这个 MCP 的 agent**看的：不给背景，只给动作、判据和禁令。人类读 [02-quickstart.md](02-quickstart.md)。
+
+## 0. 拿地址
+
+`<mcp-host>` 与 `<backend-host>` 不在公开仓库里。获取顺序：
+
+1. 读本机私有配置 `LOCAL.endpoints.md`（若存在，已被 `.gitignore` 排除）。
+2. 读环境变量 `CRAFT_MCP_URL` / `CRAFT_BACKEND_URL`。
+3. 都没有就停下来问部署负责人，**不要猜地址、不要扫网段**。
+
+拿到后照 [mcp.example.json](../mcp.example.json) 填。
+
+## 1. 先证明壳活着
+
+```bash
+curl -sS -X POST "$CRAFT_MCP_URL" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
+```
+
+判据：`200` + 响应头有 `mcp-session-id` + body 里有 `serverInfo`。
+**不要**用 `/health` 判活，这个端口可能没有该路由。
+
+## 2. 拿工具清单
+
+`tools/list`，期望看到 `craft_*` 一族（建任务、查询、工作台、特征复核、模板匹配/选择、槽位、工艺卡生成/编辑/导出）。数量对不上说明版本不同，以实际返回为准，不要凭记忆调不存在的工具。
+
+## 3. 上传图纸
+
+`craft_create_job` 的路径参数在**壳所在主机**解析，不是你本机。
+
+两条路：
+- 图纸已在壳可读的位置 → 传那个路径。
+- 否则 → 直传后端：`curl -F "files=@drawing.png" -F "library_key=default" "$CRAFT_BACKEND_URL/api/jobs"`，拿回 `job_id`，后续全走 MCP。
+
+只收 PDF / PNG / JPG。
+
+## 4. 等识别
+
+轮询 `GET $CRAFT_BACKEND_URL/api/jobs/<id>` 或 `craft_wait_job`，到 `status=extracted` 且 `progress=100`。
+`queued`/`running` 期间**重复 create 会重复消耗算力**。
+
+## 5. 读工作台（每次写之前都读）
+
+`craft_get_workbench`，默认 summary，要完整数据用 `detail="full"`。
+
+三件事必看：`revision`、`current_stage`、`blocking_action`；再核对返回体里的 `job_id` 等于你请求的 id。**不等就停**，见 [故障手册第 9 条](04-troubleshooting.md)。
+
+## 6. 特征复核（最容易毁数据的一步）
+
+`POST /feature-review` 是**整表替换**，不是补丁。
+
+正确做法：
+
+1. 取 full 工作台的 `review.features` 完整数组。
+2. 就地改需要改的对象（`status` 置 `confirmed` 或 `rejected`）。
+3. `value` 一律转成**字符串**（壳的 schema 拒数字）。
+4. 把**整张表**回传。
+
+只发 `{feature_id, decision}` 会丢掉 role/value/confidence，计数回到 unresolved。
+
+判据：`counts.needs_review == 0`，`blocking_action` 前进。
+
+**每一条都要有人确认过才能写。** 不要自己批量确认；把待确认项列给人，等人回。
+
+## 7. 模板匹配 → 选择
+
+`craft_template_match` 只是算候选，**候选不等于已选**。
+`craft_select_template` 才提交选择，可能超过 60s，超时后**先读工作台**，看到已选就继续，不要重选。
+
+判据：`replacement` 里有选中的模板，`blocking_action` 前进。未选就 `craft_generate_process_card` 必 409。
+
+## 8. 槽位
+
+`craft_update_slots` 写值，`craft_review_slots` 记录复核。
+值的三个来源必须分清：图纸事实、人工决定、后端派生。**派生值（车/磨/镗余量）不得当原始值写入。**
+
+## 9. 生成与导出
+
+`craft_generate_process_card`（`mode=official`）。
+导出优先直连后端，避免文件落在壳的容器目录里：
+
+```bash
+curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/<id>/process-card/export"
+```
+
+按响应 `Content-Type` 判断格式，别信文档里的后缀（实测有返回 XLSX 而当文档写 CSV 的情况）。
+
+## 10. 写操作通用规则
+
+- 每次写带当前 `revision`，409 就重读工作台再改，**不要盲目重试**。
+- 写前写后都比对 `job_id`。
+- 超时不等于失败，先查状态。
+- `reference_drawing` 是模板来源图号，不是当前图号。
+- 一个 job 同时只让一个客户端写。
+
+## 绝对不要
+
+编造尺寸、公差、材料；把候选当选择；把派生值当事实；跳过人工确认；把失败当成功继续往下走。

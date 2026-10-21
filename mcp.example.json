@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "craft-process": {
+      "type": "http",
+      "url": "http://<mcp-host>:8764/mcp",
+      "description": "Drawing to process-card workbench (MCP shell). Ask the deployment owner for <mcp-host>."
+    }
+  }
+}

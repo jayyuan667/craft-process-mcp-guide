@@ -1,0 +1,7 @@
+.DS_Store
+*.zip
+LOCAL.endpoints.md
+node_modules/
+__pycache__/
+*.pyc
+.venv/
