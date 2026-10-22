@@ -15,6 +15,10 @@ And parse a human reply back into canonical answers:
 
     ask.py parse --in q.json --reply "3=+0.13; 6无; 其余采用"
 
+When there is a terminal and no structured UI, ask item by item instead:
+
+    ask.py tui --in q.json --out answers.json
+
 Standard library only.
 """
 
@@ -105,7 +109,7 @@ def render_html(q: dict) -> str:
         )
         cards.append(f"""
     <section class="card" data-id="{html.escape(str(it.get('id', i)))}" data-index="{i}"
-             data-value="{value}">
+             data-kind="{kind}" data-value="{value}">
       <header><span class="no">{i}</span><h3>{html.escape(str(it.get('label', '')))}</h3></header>
       <div class="sys">系统值 <b>{value or '—'}</b></div>
       {f'<div class="ev">{ev}</div>' if ev else ''}
@@ -148,6 +152,7 @@ function build(){{
   const answers=cards.map(c=>{{
     const v=c.querySelector('input[type=radio]:checked').value, id=c.dataset.id, base=c.dataset.value;
     if(v==='fix'){{const t=c.querySelector('.fix').value.trim();return t?{{id,status:'corrected',value:t}}:{{id,status:'unsure',value:base}};}}
+    if(c.dataset.kind==='choice')return {{id,status:'selected',value:v}};
     return {{id,status:{{ok:'confirmed',present:'present',absent:'absent',unsure:'unsure'}}[v]||v,value:base}};
   }});
   const out=document.getElementById('out');out.style.display='block';
@@ -205,6 +210,89 @@ def parse_reply(q: dict, reply: str) -> dict:
     return {"answers": [answers[k] for k in order]}
 
 
+def _read_line(prompt: str) -> str:
+    """Read one answer; EOF aborts the whole review instead of defaulting."""
+    print(prompt, end="", flush=True)
+    line = sys.stdin.readline()
+    if line == "":
+        raise EOFError
+    return line.strip()
+
+
+def run_tui(q: dict) -> dict | None:
+    """Walk the items one per line. Returns None if the user backs out.
+
+    Enter keeps the system value, text corrects it, "?" is unclear, "s" skips.
+    An EOF (closed stdin, pipe ran out) raises instead of confirming everything,
+    because a silent "all correct" is the one answer nobody gave.
+    """
+    items = q["items"]
+    total = len(items)
+    print(f"\n{q.get('title', '确认项')}\n")
+    if q.get("note"):
+        print(f"{q['note']}\n")
+    answers = []
+    for i, it in enumerate(items, 1):
+        kind = it.get("type", "text")
+        value = str(it.get("value", ""))
+        print(f"[{i}/{total}] {it.get('label', '')}    当前：{value or '—'}")
+        if it.get("evidence"):
+            print(f"      依据：{it['evidence']}")
+        options = it.get("options", []) if kind == "choice" else []
+        if kind == "presence":
+            print("      有 / 无 / ?")
+        elif kind == "choice":
+            print("      " + " / ".join(f"{n}){o}" for n, o in enumerate(options, 1)))
+        else:
+            print("      回车采用 / 直接输入更正 / ? 看不清 / s 跳过")
+        while True:
+            raw = _read_line("      > ")
+            if kind == "presence":
+                if raw in ("",) or raw in PRESENT:
+                    answers.append({"id": str(it.get("id", i)), "status": "present", "value": "有"})
+                elif raw in ABSENT:
+                    answers.append({"id": str(it.get("id", i)), "status": "absent", "value": "无"})
+                elif raw in UNSURE:
+                    answers.append({"id": str(it.get("id", i)), "status": "unsure", "value": value})
+                else:
+                    print("      只接受 有 / 无 / ?")
+                    continue
+                break
+            if kind == "choice":
+                picked = None
+                if raw.isdigit() and 1 <= int(raw) <= len(options):
+                    picked = options[int(raw) - 1]
+                elif raw in options:
+                    picked = raw
+                if picked is None:
+                    print("      请输入选项编号")
+                    continue
+                answers.append({"id": str(it.get("id", i)), "status": "selected", "value": picked})
+                break
+            if raw == "":
+                answers.append({"id": str(it.get("id", i)), "status": "confirmed", "value": value})
+            elif raw in UNSURE:
+                answers.append({"id": str(it.get("id", i)), "status": "unsure", "value": value})
+            elif raw in SKIP:
+                answers.append({"id": str(it.get("id", i)), "status": "skipped", "value": value})
+            else:
+                answers.append({"id": str(it.get("id", i)), "status": "corrected", "value": raw})
+            break
+        print()
+
+    print("结果：")
+    for it, ans in zip(items, answers):
+        mark = {"confirmed": "采用", "corrected": "更正", "present": "有",
+                "absent": "无", "selected": "选定", "skipped": "跳过"}.get(ans["status"], "待定")
+        print(f"  {mark}  {it.get('label', '')}：{ans['value'] or '—'}")
+    unsure = sum(1 for a in answers if a["status"] == "unsure")
+    if unsure:
+        print(f"\n仍有 {unsure} 项看不清，不会被当成正确。")
+    if _read_line("\n写入？(Y/n) ").lower() not in ("", "y", "yes", "是", "好"):
+        return None
+    return {"answers": answers}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -214,10 +302,28 @@ def main() -> int:
     p = sub.add_parser("parse")
     p.add_argument("--in", dest="src", required=True)
     p.add_argument("--reply", required=True)
+    t = sub.add_parser("tui")
+    t.add_argument("--in", dest="src", required=True)
+    t.add_argument("--out", dest="dst")
     args = ap.parse_args()
 
     q = load(args.src)
-    if args.cmd == "render":
+    if args.cmd == "tui":
+        try:
+            result = run_tui(q)
+        except EOFError:
+            print("输入提前结束，没有写入任何答案。", file=sys.stderr)
+            print("非交互环境请改用 --format md 或 html。", file=sys.stderr)
+            return 2
+        if result is None:
+            print("已取消，未写入。")
+            return 0
+        text = json.dumps(result, ensure_ascii=False, indent=2)
+        if args.dst:
+            Path(args.dst).write_text(text + "\n", encoding="utf-8")
+            print(f"已写入 {args.dst}")
+            return 0
+    elif args.cmd == "render":
         text = {"md": render_md, "html": render_html, "json": render_json}[args.format](q)
     else:
         text = json.dumps(parse_reply(q, args.reply), ensure_ascii=False, indent=2)
