@@ -65,7 +65,7 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 
 ## 修复方案
 
-九份说明，按「会不会毁数据」排序，实施顺序见 [docs/06-optimization-plan.md](docs/06-optimization-plan.md)：
+十份说明，按「会不会毁数据」排序，实施顺序见 [docs/06-optimization-plan.md](docs/06-optimization-plan.md)：
 
 1. [后端地址可配置](patches/01-api-base-url.md) — 不改数据，只改部署。
 2. [特征复核改为合并语义](patches/02-feature-review-payload.md) — 防止整张特征表被覆盖。
@@ -76,6 +76,7 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 7. [任务状态一致性](patches/07-state-consistency.md) — 防止读错任务、写错任务。
 8. [槽位取值权威](patches/08-slot-value-authority.md) — 人工确认值不被派生规则覆盖。
 9. [生成语义与计数](patches/09-generate-semantics.md) — `generate` 空操作、`rejected` 计数、导出格式。
+10. [后端地址自披露](patches/10-backend-address-discovery.md) — 让 `craft_health` 说出后端地址，不用再找端口。
 
 一次真实链路的完整记录（含 revision 时间线和踩坑顺序）见 [docs/07-field-notes.md](docs/07-field-notes.md)。
 
@@ -95,8 +96,10 @@ docs/04-troubleshooting.md 按症状查的故障手册
 docs/05-agent-playbook.md  给 agent 的十步操作协议
 docs/06-optimization-plan.md 分三批的优化方案与验收标准
 docs/07-field-notes.md     一次真实链路的现场笔记与 revision 时间线
+docs/08-endpoint-discovery.md 后端地址的发现路径（不扫端口）
 mcp.example.json           客户端配置模板（地址用占位符）
-patches/                   九份修复与改进方案
+tools/craft_discover.py    CLI；验证候选地址并做服务名指纹比对
+patches/                   十份修复与改进方案
 ```
 
 ## 许可

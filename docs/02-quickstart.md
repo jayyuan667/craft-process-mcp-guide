@@ -38,7 +38,7 @@ Two workable patterns:
 
 **A. The file is already visible to the shell.** Put the drawing where the shell can read it, pass that path.
 
-**B. Upload directly to the backend.** The backend accepts multipart uploads:
+**B. Upload directly to the backend.** The backend accepts multipart uploads. If you do not know its address, [docs/08-endpoint-discovery.md](08-endpoint-discovery.md) gives the order to try — and `tools/craft_discover.py` verifies a short candidate list instead of scanning ports.
 
 ```bash
 curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
@@ -90,11 +90,13 @@ Acceptance: `counts.needs_review` drops to zero and `blocking_action` moves on.
 
 `craft_template_match` computes candidates. It is a preview. **Candidates are not a selection**, and generating a card before selecting returns `409`.
 
+Candidates live in `decision.candidates`, not in `replacement`; `replacement` is null until a template is actually selected. Do not wait for it to populate before matching.
+
 Candidates are ranked by `match_strength`, but that field alone is not enough to choose: a real run produced 25 candidates, all `complete`, of which exactly one had a `template_preview.reference_drawing` equal to the current drawing. Read `template_preview.reference_drawing` before selecting. Matching the current drawing number means the slot values and process text already belong to this part; a different number means you are borrowing another size band.
 
 `craft_select_template` commits one candidate. On real drawings this step can take longer than a client's default timeout. A client-side timeout does not mean the server failed: re-read the workbench and check `revision` and the selected template before retrying.
 
-Acceptance: the workbench shows a selected template in `replacement` and `blocking_action` advances.
+Acceptance: `blocking_action` advances past template selection. Do not rely on `selected_template_id` being populated — in some builds it stays null on the top level and inside `decision` even after a successful selection, so the stage/blocking state is the reliable signal.
 
 ## 7. Fill slots
 

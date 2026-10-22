@@ -4,11 +4,20 @@
 
 ## 0. 拿地址
 
-`<mcp-host>` 与 `<backend-host>` 不在公开仓库里。获取顺序：
+`<mcp-host>` 与 `<backend-host>` 不在公开仓库里。按顺序试，别跳步、别扫网段：
 
-1. 读本机私有配置 `LOCAL.endpoints.md`（若存在，已被 `.gitignore` 排除）。
+1. 读 `LOCAL.endpoints.md`（本机私有，已被 `.gitignore` 排除）或 `~/.config/craft-process/endpoints.json`。
 2. 读环境变量 `CRAFT_MCP_URL` / `CRAFT_BACKEND_URL`。
-3. 都没有就停下来问部署负责人，**不要猜地址、不要扫网段**。
+3. 调一次 `craft_health`，看返回里有没有 `backend_url`（打了 [patch 10](../patches/10-backend-address-discovery.md) 就会有）。
+4. 还没有，用验证脚本试一个短名单，而不是扫端口：
+
+```bash
+python tools/craft_discover.py --mcp "$CRAFT_MCP_URL"
+```
+
+它只验证同主机的已知候选，并用 `craft_health` 报告的服务名做指纹比对，端口开着但服务不对会被跳过。
+
+5. 仍然没有，停下来问部署负责人。**不要猜地址、不要扫网段**——扫到的多半是别人的服务。完整说明见 [08-endpoint-discovery.md](08-endpoint-discovery.md)。
 
 拿到后照 [mcp.example.json](../mcp.example.json) 填。
 
@@ -71,9 +80,11 @@ curl -sS -X POST "$CRAFT_MCP_URL" \
 `craft_template_match` 只是算候选，**候选不等于已选**。
 `craft_select_template` 才提交选择，可能超过 60s，超时后**先读工作台**，看到已选就继续，不要重选。
 
-判据：`replacement` 里有选中的模板，`blocking_action` 前进。未选就 `craft_generate_process_card` 必 409。
+判据：`blocking_action` 前进、stage 进入 replace。**不要等 `replacement` 填充**——选择前它是 null，候选在 `decision.candidates`；`selected_template_id` 在有些版本里选完仍是 null，别拿它当唯一判据。
 
 **选候选不要只看 `match_strength`。** 25 个候选可以全是 `complete`。看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
+
+**选模板可能被 422 拒绝**（`模板缺少关键特征：XXX`）。这不是让你换模板，是服务端在告诉你它还缺一个结构判断。回到图纸确认该结构是否真实存在，再用 `feature_presence` 置 yes/no，然后重试选择。
 
 ## 8. 槽位
 

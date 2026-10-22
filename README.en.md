@@ -61,6 +61,7 @@ Nine notes, ordered by risk, with a suggested sequence in [docs/06-optimization-
 7. [Job state consistency](patches/07-state-consistency.md) — stop reading and writing the wrong job.
 8. [Slot value authority](patches/08-slot-value-authority.md) — confirmed values outrank derived ones.
 9. [Generation semantics and counts](patches/09-generate-semantics.md) — no-op generate, rejected counting, export type.
+10. [Backend address discovery](patches/10-backend-address-discovery.md) — let `craft_health` name the backend instead of hunting ports.
 
 A complete real run, including the revision timeline, is recorded in [docs/07-field-notes.md](docs/07-field-notes.md).
 
@@ -80,8 +81,10 @@ docs/04-troubleshooting.md symptom-driven runbook
 docs/05-agent-playbook.md  ten-step protocol for agents
 docs/06-optimization-plan.md  phased plan with acceptance criteria
 docs/07-field-notes.md        one real run, with revision timeline
+docs/08-endpoint-discovery.md finding the backend without port scans
 mcp.example.json           client config template (placeholder host)
-patches/                   nine fix and improvement proposals
+tools/craft_discover.py    verify candidate endpoints by service fingerprint
+patches/                   ten fix and improvement proposals
 ```
 
 ## License

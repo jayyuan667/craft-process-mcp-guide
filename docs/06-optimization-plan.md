@@ -50,6 +50,8 @@ agent 只读 `craft_next_action` 和 `craft_get_workbench` 就能走完 7 个阶
 
 **生成语义。** 未复核时 `generate` 返回 409 或直接出卡，不能 `200 + null`；`rejected` 不计入 `unresolved`。见 [patches/09-generate-semantics.md](../patches/09-generate-semantics.md)。
 
+**后端地址自披露。** `craft_health` 返回 `backend_url` 与版本号；调用方不必再扫端口。见 [patches/10-backend-address-discovery.md](../patches/10-backend-address-discovery.md)。
+
 验收：每条一个集成测试，外加一张真实图纸从头到尾。
 
 ## 第二批：对齐页面
