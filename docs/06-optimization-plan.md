@@ -46,6 +46,10 @@ agent 只读 `craft_next_action` 和 `craft_get_workbench` 就能走完 7 个阶
 
 **超时语义。** 选模板单独给 180–300 秒；错误里带「先读 workbench 再决定是否重试」。见 [patches/04-timeout-and-export.md](../patches/04-timeout-and-export.md)。
 
+**槽位取值权威。** 人工确认 > 图纸事实 > 派生 > 模板默认；生成阶段不得覆盖已确认值；候选事实按 nominal 绑定，宁可为空也不给近似值。见 [patches/08-slot-value-authority.md](../patches/08-slot-value-authority.md)。
+
+**生成语义。** 未复核时 `generate` 返回 409 或直接出卡，不能 `200 + null`；`rejected` 不计入 `unresolved`。见 [patches/09-generate-semantics.md](../patches/09-generate-semantics.md)。
+
 验收：每条一个集成测试，外加一张真实图纸从头到尾。
 
 ## 第二批：对齐页面
@@ -71,3 +75,5 @@ agent 只读 `craft_next_action` 和 `craft_get_workbench` 就能走完 7 个阶
 ## 度量
 
 上线后看四个数：全链路成功率、假超时次数、写操作导致的状态回退次数、跨任务 `job_id` 不一致次数。前两个看可用性，后两个看安全性。
+
+再加一个业务指标：**生成后与人工确认不一致的槽位数**。这个数不为零，说明取值权威没有落实；它比任何成功率都更能说明卡片能不能直接下发。

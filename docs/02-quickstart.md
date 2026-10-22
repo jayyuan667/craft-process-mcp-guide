@@ -90,6 +90,8 @@ Acceptance: `counts.needs_review` drops to zero and `blocking_action` moves on.
 
 `craft_template_match` computes candidates. It is a preview. **Candidates are not a selection**, and generating a card before selecting returns `409`.
 
+Candidates are ranked by `match_strength`, but that field alone is not enough to choose: a real run produced 25 candidates, all `complete`, of which exactly one had a `template_preview.reference_drawing` equal to the current drawing. Read `template_preview.reference_drawing` before selecting. Matching the current drawing number means the slot values and process text already belong to this part; a different number means you are borrowing another size band.
+
 `craft_select_template` commits one candidate. On real drawings this step can take longer than a client's default timeout. A client-side timeout does not mean the server failed: re-read the workbench and check `revision` and the selected template before retrying.
 
 Acceptance: the workbench shows a selected template in `replacement` and `blocking_action` advances.
@@ -98,11 +100,19 @@ Acceptance: the workbench shows a selected template in `replacement` and `blocki
 
 `craft_update_slots` writes parameter values; `craft_review_slots` records the review decision. Values must come from the drawing or from a human decision. Derived values — turning, grinding, boring allowances — are computed by the backend and must not be written as raw facts.
 
+Two behaviours observed in a real run and worth knowing before you trust a green check:
+
+Candidate fact binding can attach the wrong facts. A slot for a Ø64 surface was offered candidate facts of Ø164 and Ø157, which belong to different diameters. Check that the suggested fact's nominal matches the slot's nominal before accepting it.
+
+Derived slots may be recomputed at generation time, ignoring the value you confirmed. If the card differs from the slot you reviewed, do not assume the review was lost silently: compare the card row with the confirmed slot, and correct the generated card explicitly if needed. See [patches/08-slot-value-authority.md](../patches/08-slot-value-authority.md).
+
 ## 8. Generate the card
 
-`craft_generate_process_card` with `mode=official` produces the card. Acceptance: the workbench's `process_card` becomes non-null and the edit endpoint accepts the job.
+`craft_generate_process_card` is not always the call that produces the card. In a real run it returned `200` while `process_card` stayed `null`; the official card appeared only after `craft_review_slots`.
 
-`craft_edit_process_card` exists for manual row edits after generation. Use it instead of regenerating when only wording changes.
+So the acceptance check is on state, not on the response: read the workbench and require `process_card.mode == "official"` and a non-null `operations` array. If it is still null after `generate`, call `craft_review_slots` and read again. Exporting before the card exists produces placeholder rows.
+
+`craft_edit_process_card` exists for manual row edits after generation. Use it instead of regenerating when only wording or a derived value needs correcting.
 
 ## 9. Export
 

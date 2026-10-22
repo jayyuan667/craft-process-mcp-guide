@@ -50,12 +50,19 @@ Detailed triage in [docs/04-troubleshooting.md](docs/04-troubleshooting.md).
 
 ## Fixes
 
-Four patches, ordered by risk:
+Nine notes, ordered by risk, with a suggested sequence in [docs/06-optimization-plan.md](docs/06-optimization-plan.md):
 
 1. [Configurable backend base URL](patches/01-api-base-url.md) — deployment only, no data change.
 2. [Merge semantics for feature review](patches/02-feature-review-payload.md) — stop wiping the feature table.
 3. [`create_job` accepts file content](patches/03-file-content-input.md) — decouple client from the backend filesystem.
 4. [Timeouts and export](patches/04-timeout-and-export.md) — long tasks and artifact delivery.
+5. [Draft process card tools](patches/05-draft-process-card-tools.md) — the review step the UI has and MCP lacks.
+6. [`next_action` tool](patches/06-next-action-tool.md) — put the next step in the protocol.
+7. [Job state consistency](patches/07-state-consistency.md) — stop reading and writing the wrong job.
+8. [Slot value authority](patches/08-slot-value-authority.md) — confirmed values outrank derived ones.
+9. [Generation semantics and counts](patches/09-generate-semantics.md) — no-op generate, rejected counting, export type.
+
+A complete real run, including the revision timeline, is recorded in [docs/07-field-notes.md](docs/07-field-notes.md).
 
 ## Workflow and gates
 
@@ -70,7 +77,11 @@ docs/01-architecture.md    two-layer architecture and layered triage
 docs/02-quickstart.md      connect, upload, run
 docs/03-workflow-and-gates.md  gates, constraints, red lines
 docs/04-troubleshooting.md symptom-driven runbook
-patches/                   four fix proposals
+docs/05-agent-playbook.md  ten-step protocol for agents
+docs/06-optimization-plan.md  phased plan with acceptance criteria
+docs/07-field-notes.md        one real run, with revision timeline
+mcp.example.json           client config template (placeholder host)
+patches/                   nine fix and improvement proposals
 ```
 
 ## License

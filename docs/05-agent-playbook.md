@@ -73,14 +73,25 @@ curl -sS -X POST "$CRAFT_MCP_URL" \
 
 判据：`replacement` 里有选中的模板，`blocking_action` 前进。未选就 `craft_generate_process_card` 必 409。
 
+**选候选不要只看 `match_strength`。** 25 个候选可以全是 `complete`。看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
+
 ## 8. 槽位
 
 `craft_update_slots` 写值，`craft_review_slots` 记录复核。
 值的三个来源必须分清：图纸事实、人工决定、后端派生。**派生值（车/磨/镗余量）不得当原始值写入。**
 
+三件事必须逐项核对，不要信服务端的建议：
+
+- **候选事实可能绑错槽位。** 见过 Ø64 的槽位被建议 Ø164、Ø157。先比 nominal 再用。
+- **派生值可能在生成阶段覆盖人工确认值。** 确认了 `-0.05/-0.10`，正式卡里回来的是 `-0.05/-0.13`。生成后逐行比对。
+- **公差 OCR 会错。** `+0.1` 被读成 `+0.01`，而服务端提示「以图纸为准」指的也是错的那个。放大原图看原始标注。
+
 ## 9. 生成与导出
 
-`craft_generate_process_card`（`mode=official`）。
+`craft_generate_process_card` **不一定是真正出卡的那一步**。实测它返回 200，但 `process_card` 仍是 null；official 卡是在 `craft_review_slots` 之后才出现的。
+
+所以判据看状态，不看返回码：读工作台，要求 `process_card.mode == "official"` 且 `operations` 非空。还是 null 就调 `craft_review_slots` 再读。卡没出来就导出会得到带「待确认」占位的行。
+
 导出优先直连后端，避免文件落在壳的容器目录里：
 
 ```bash

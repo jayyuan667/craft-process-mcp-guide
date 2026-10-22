@@ -22,6 +22,20 @@ Three categories, and they must not be mixed:
 
 When a value is uncertain, the correct action is to leave it for review, not to guess. A fabricated dimension is worse than a missing one because it passes every downstream check.
 
+## Precedence when the server disagrees with the drawing
+
+A human-confirmed slot value is supposed to outrank a rule-derived value. Do not assume it does. In a real run, a slot confirmed as `-0.05/-0.10` came back in the generated card as `-0.05/-0.13`, the value the turning rule computes from the raw diameter. The confirmation was recorded, then overridden during generation.
+
+The practical rule: after generating, compare every derived slot in the card against the value you confirmed. Where they differ, decide which is right by looking at the drawing and the template, then correct the card with `craft_edit_process_card`. Do not "fix" it by re-running the review; if the rule recomputes on generation, it will be overwritten again.
+
+The same caution applies to suggested facts. Candidate facts can be bound to the wrong slot: a Ø64 surface was offered Ø164 and Ø157 as candidates. Match the nominal before accepting a suggestion.
+
+Tolerance text is the weakest link. A real drawing's `+0.1/0` was read as `+0.01/0`, and the service's own hint — "the template differs, take the drawing as authoritative" — pointed at the wrong number. Enlarge the region and read the original text before accepting any tolerance.
+
+## Counting semantics
+
+`rejected` is not the same as processed. In one run, three false-positive detections were marked `status=rejected` and `counts.unresolved` stayed at three, blocking nothing but reporting unresolved work forever. The stage only advanced after `feature_presence` flipped the structural features. Read `blocking_action`, not `counts`, when deciding whether the gate is satisfied.
+
 ## A review checklist that works
 
 Read the drawing, not just the extraction. For each candidate dimension, compare against the actual annotation. For each detection box, ask whether the geometry inside the box exists at all.
@@ -34,7 +48,9 @@ Overall length taken from a neighbouring dimension line rather than the overall 
 
 Maximum diameter ambiguous when several diameters are dimensioned on the same end. The largest marked diameter, the sealing-face diameter and the theoretical envelope of a spherical feature are three different numbers; pick the one the template's rule expects and say which you used.
 
-Detection boxes on annotation clusters. A box whose evidence is "dimension lines only" is a false positive; reject it rather than confirming a feature that does not exist.
+Detection boxes on annotation clusters. A box whose evidence is "dimension lines only" is a false positive; reject the box, not necessarily the feature. A real case: the keyway box landed on a dimension cluster, while the drawing's technical requirements explicitly said "keyway and 5 mm around it not nitrided" and the section view showed the keyway. The box was wrong and the feature existed. Judge box accuracy and feature presence separately.
+
+Candidate templates with identical match strength. Twenty-five candidates can all be `complete`. Choose by `template_preview.reference_drawing`, not by score alone. The one whose reference drawing equals the current drawing is the one whose slot values already belong to this part.
 
 ## What the card does and does not contain
 
