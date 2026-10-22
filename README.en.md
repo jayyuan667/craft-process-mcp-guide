@@ -82,8 +82,10 @@ docs/05-agent-playbook.md  ten-step protocol for agents
 docs/06-optimization-plan.md  phased plan with acceptance criteria
 docs/07-field-notes.md        one real run, with revision timeline
 docs/08-endpoint-discovery.md finding the backend without port scans
+docs/09-asking-humans.md   question formats for text-only harnesses
 mcp.example.json           client config template (placeholder host)
 tools/craft_discover.py    verify candidate endpoints by service fingerprint
+tools/review_sheet.py      turn a workbench into a clickable review sheet
 patches/                   ten fix and improvement proposals
 ```
 
