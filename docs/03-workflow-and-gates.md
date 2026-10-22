@@ -1,75 +1,104 @@
-# Workflow and gates
+# 03 · 工作流与闸门
 
-The service is built around the assumption that extraction is fallible and a human owns the result. The gates are enforced server-side; a client cannot skip them, and a well-behaved client should not try.
+这套服务的假设是：识别会错，结果由人负责。三处闸门在服务端强制，客户端跳不过去，也不该试着跳。
 
-## Three gates
+具体怎么调用见 [02](02-quickstart.md)，agent 的动作与禁令见 [05](05-agent-playbook.md)，每次踩坑的原始证据见 [07](07-field-notes.md)。
 
-**Feature review.** After extraction the workbench enters review. Features split into confirmed facts and items needing review. The server refuses to advance while `blocking_action` is `confirm_features`. Reviewing is not a formality: on real drawings, OCR misreads thread callouts and dimension values, and detection models produce boxes that contain only dimension lines.
+## 三处闸门
 
-**Template selection.** Matching produces candidates. Selecting commits one. Until a template is selected, card generation returns `409`. Candidate lists are recomputed freely; selection is a state change.
+**特征复核。** 识别完成后工作台进入 review。特征分成已确认事实和待复核项；`blocking_action` 为 `confirm_features` 时服务端拒绝前进。复核不是形式：真实图纸上 OCR 会读错螺纹标注和尺寸，检测模型也会给出只框住尺寸线的框。
 
-**Slot review.** Parameter slots must be filled and reviewed before the card is generated. Slot values carry provenance; the review step is where a human confirms that the provenance is acceptable.
+**模板选择。** 匹配只产生候选，选择才提交状态。未选择时生成返回 `409`。候选可以反复重算，选择是一次状态变更。
 
-## Provenance rules for values
+**槽位复核。** 参数槽位要填完并复核才能出卡。每个值带来源标记，复核这一步是人确认来源可接受的地方。
 
-Three categories, and they must not be mixed:
+## 取值来源
 
-*Drawing facts.* Values printed on the drawing or measured from it. Safe to write into slots. Preserve the callout as written, including tolerance and thread class.
+三类，不可混用：
 
-*Human decisions.* A person confirms or corrects a value. Record it as a decision, not as an extraction.
+**图纸事实。** 图上印出或从图上量出的值，可以写入槽位。按原样保留标注，包括公差和螺纹等级。
 
-*Derived values.* Turning, grinding, boring allowances and similar. The backend computes these from rules. Writing them as raw facts double-counts them and corrupts downstream calculations.
+**人工决定。** 人确认或更正的值。记为决定，不要记成识别结果。
 
-When a value is uncertain, the correct action is to leave it for review, not to guess. A fabricated dimension is worse than a missing one because it passes every downstream check.
+**派生值。** 车、磨、镗余量等由后端按规则计算的值。当原始事实写入会重复计算，污染下游。
 
-## Precedence when the server disagrees with the drawing
+拿不准时，正确动作是留给复核，不是猜。编造的尺寸比缺失的尺寸更危险，因为它能通过所有下游检查。
 
-A human-confirmed slot value is supposed to outrank a rule-derived value. Do not assume it does. In a real run, a slot confirmed as `-0.05/-0.10` came back in the generated card as `-0.05/-0.13`, the value the turning rule computes from the raw diameter. The confirmation was recorded, then overridden during generation.
+## 服务端与图纸冲突时
 
-The practical rule: after generating, compare every derived slot in the card against the value you confirmed. Where they differ, decide which is right by looking at the drawing and the template, then correct the card with `craft_edit_process_card`. Do not "fix" it by re-running the review; if the rule recomputes on generation, it will be overwritten again.
+人工确认的槽位值本应高于规则派生值。**不要假定它真的更高。** 真实运行里，确认成 `-0.05/-0.10` 的槽位，正式卡里回来的是 `-0.05/-0.13`，即车削规则从原始直径算出的值。确认被记录了，然后在生成阶段被覆盖。
 
-The same caution applies to suggested facts. Candidate facts can be bound to the wrong slot: a Ø64 surface was offered Ø164 and Ø157 as candidates. Match the nominal before accepting a suggestion.
+可操作的规则：出卡后逐个比对派生槽位和你确认的值；不同就以图纸和模板为准判断谁对，再用 `craft_edit_process_card` 改卡。不要用「重跑复核」来修——规则在生成时会再算一次，还是会被覆盖。
 
-Tolerance text is the weakest link. A real drawing's `+0.1/0` was read as `+0.01/0`, and the service's own hint — "the template differs, take the drawing as authoritative" — pointed at the wrong number. Enlarge the region and read the original text before accepting any tolerance.
+同样的警惕适用于建议事实：候选事实可能绑错槽位，Ø64 的槽位被建议过 Ø164 和 Ø157。接受前比对 nominal。
 
-## Counting semantics
+公差文本是最薄的一环。真实图纸的 `+0.1/0` 被读成 `+0.01/0`，而服务端「模板不同，以图纸为准」的提示指向的正是错的数字。放大原图看原始标注再接受任何公差。
 
-`rejected` is not the same as processed. In one run, three false-positive detections were marked `status=rejected` and `counts.unresolved` stayed at three, blocking nothing but reporting unresolved work forever. The stage only advanced after `feature_presence` flipped the structural features. Read `blocking_action`, not `counts`, when deciding whether the gate is satisfied.
+## 计数语义
 
-## A review checklist that works
+`rejected` 不等于已处理。一次运行里三个误检被标成 `status=rejected`，`counts.unresolved` 仍是 3，一直报告未完成却不阻断任何东西；直到用 `feature_presence` 翻掉结构特征，阶段才前进。判断闸门是否满足，看 `blocking_action` 和 `validation.status`，不要只看 `counts`。
 
-Read the drawing, not just the extraction. For each candidate dimension, compare against the actual annotation. For each detection box, ask whether the geometry inside the box exists at all.
+## 出卡门槛：四个字段一起看
 
-Typical failure modes seen in practice:
+写完全部槽位不等于可以出卡。生成和导出之前，把下面四项一起读，**任何一项不满足都不生成、不导出**：
 
-Thread callouts misread by OCR, with digits dropped or transposed. A callout of the form `M###x#-#g` becoming something shorter is a red flag; verify against the view.
+| 字段 | 通过条件 |
+| --- | --- |
+| `replacement.validation.status` | 不是 `partial` / `unresolved` 一类未完成状态 |
+| `unresolved_slots` | 为空 |
+| `blocking_action` | 已经允许生成，而不是还停在槽位复核 |
+| `process_card` | 未生成时为 null；生成后 `mode == "official"` 且 `operations` 非空 |
 
-Overall length taken from a neighbouring dimension line rather than the overall dimension. Cross-check that the value's extension lines actually span the part.
+四条来自同一次校验，必须互相印证。**摘要显示「无未解决项」而详细校验是 `partial`，就是状态互相矛盾**：重读一次工作台；仍矛盾就停下来报告，不要用「摘要看起来可以」当放行依据。
 
-Maximum diameter ambiguous when several diameters are dimensioned on the same end. The largest marked diameter, the sealing-face diameter and the theoretical envelope of a spherical feature are three different numbers; pick the one the template's rule expects and say which you used.
+这条门槛的两个原因都能在真实运行里找到：`counts` 会把 `rejected` 算成未解决，也可能在详细校验没通过时看起来干净；而 `generate` 返回 `200` 时 `process_card` 仍可能是 null。**只看工具返回码或只看摘要，都会把「参数已写入」误当成「正式卡已具备生成条件」。**
 
-Detection boxes on annotation clusters. A box whose evidence is "dimension lines only" is a false positive; reject the box, not necessarily the feature. A real case: the keyway box landed on a dimension cluster, while the drawing's technical requirements explicitly said "keyway and 5 mm around it not nitrided" and the section view showed the keyway. The box was wrong and the feature existed. Judge box accuracy and feature presence separately.
+## 保存 ≠ 确认 ≠ 过闸
 
-Candidate templates with identical match strength. Twenty-five candidates can all be `complete`. Choose by `template_preview.reference_drawing`, not by score alone. The one whose reference drawing equals the current drawing is the one whose slot values already belong to this part.
+同一批槽位有三种不同状态，不能互相替代：
 
-## What the card does and does not contain
+`已保存` 是请求被接收；`已确认` 是人看过并拍了板；`已过闸` 是校验通过、可以出卡。服务端和客户端都应把这三者分开表达。工具返回「已保存」或 `200`，不代表后两者；反过来，详细校验失败时也不应回显「已确认」。
 
-`reference_drawing` in the generated card is the **template's source drawing number**, not the drawing you uploaded. Reading it as the current part's number is a common mistake.
+## 校验失败时不要猜格式
 
-Technical requirements are bound selectively. Only the requirement items referenced by the template's body text are pulled into the card. A drawing with five requirements may produce a card carrying two. If a requirement matters and is missing, check whether the template references it before assuming a bug.
+公差这类值被拒时，先确认图纸原文和工具实际接受的格式，再做**一次**有依据的提交。仍然被拒，就保留人工确认的图纸事实并停下，把校验问题转交处理。
 
-## Concurrency
+不要靠反复换写法让状态收敛。真实运行里，一个合法的 Ø75（0/−0.2）被反复判成格式无效，多次尝试没有推进任何状态，只增加了不可追溯的提交记录。**停止本身是正确结果，不是流程失败。**
 
-Writes carry `revision`. A mismatch returns `409`. The correct response is to re-read the workbench, reconcile your intent with the current state, and then write again. Blind retry either fails repeatedly or, on deployments that auto-fill the revision, silently overwrites someone else's decision.
+## 复核清单
 
-Do not run two clients against the same job. The revision scheme detects conflicts but does not merge them.
+读图纸，不要只读识别结果。每个候选尺寸对照图上标注；每个检测框问一句「框里的几何体到底存不存在」。
 
-## Red lines
+实践中见过的典型失败：
 
-Do not write values that are not on the drawing or confirmed by a person.
+螺纹标注被 OCR 读错，丢位或换位。形如 `M###x#-#g` 的标注变短就是红旗，回视图核对。
 
-Do not treat candidates as selections.
+总长取自相邻尺寸线而不是总尺寸线。核对尺寸界线是否真的跨过整个零件。
 
-Do not treat derived values as facts.
+同一端标了多个直径时最大外径有歧义。最大标注直径、密封面直径、球面特征的理论包络是三个数；选模板规则期望的那个，并说明用了哪个。
 
-Do not skip review to save a round trip. The gate exists because the extraction is wrong often enough to matter, and the cost of a wrong process card is paid on the shop floor.
+标注密集区的检测框。证据只有「尺寸线」的框是误检；否掉框，未必否掉特征。真实案例：键槽的框落在尺寸标注区，但技术要求写明「键槽及周围 5mm 不氮化」，剖面图也有键槽——框错了，特征存在。**框的准确性和特征是否存在，分开判断。**
+
+匹配强度相同的候选。候选可以全是 `complete`，按 `template_preview.reference_drawing` 选，不要只按分数。
+
+## 卡里有什么、没有什么
+
+卡里的 `reference_drawing` 是**模板来源图号**，不是你上传的图号。把它读成当前零件号是常见错误。
+
+技术要求是选择性绑定的：只有模板正文引用到的那几条会进卡。一张写了五条要求的图纸，可能只出两条。要求重要却没进卡时，先确认模板是否引用它，再判断是不是 bug。
+
+## 并发
+
+写操作带 `revision`，不一致返回 `409`。正确反应是重读工作台、把自己的意图对齐到当前状态，再写。盲目重试要么一直失败，要么在自动填 revision 的部署上静默覆盖别人的决定。
+
+不要两个客户端同时写同一个任务。revision 能发现冲突，但不会合并。
+
+## 红线
+
+不写图上没有、也没人确认过的值。
+
+不把候选当选择。
+
+不把派生值当事实。
+
+为省一次往返而跳过复核——闸门存在，是因为识别错得足够多，而错误工艺卡的代价是在车间付的。

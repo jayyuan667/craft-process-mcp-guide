@@ -1,160 +1,131 @@
-# 给 agent 的操作手册
+# 05 · 给 agent 的操作手册
 
-这一页是给**要直接驱动这个 MCP 的 agent**看的：不给背景，只给动作、判据和禁令。人类读 [02-quickstart.md](02-quickstart.md)。
+这一页只给动作、判据和禁令。流程细节和验收标准在 [02](02-quickstart.md)，规则背后的原因在 [03](03-workflow-and-gates.md)，同一件事只在那里写一遍。
 
-要人做判断时，按 [09-asking-humans.md](09-asking-humans.md) 的格式问——尤其在没有结构化提问控件的环境里，散文式提问会让人多花几倍时间。不同客户端的渲染方式见 [10-harness-interaction.md](10-harness-interaction.md)。
+## 开工前
+
+每次任务开始，先读仓库里的最新 guide 和 `tools/list` 返回的实际 schema，至少核对本页、[02](02-quickstart.md) 与 [04](04-troubleshooting.md)。**guide 会更新，旧记忆只能当索引**：以仓库当前版本和工具实际返回为准，不要凭上一次会话的印象调用参数。
 
 ## 0. 拿地址
 
-`<mcp-host>` 与 `<backend-host>` 不在公开仓库里。按顺序试，别跳步、别扫网段：
+`<mcp-host>` 与 `<backend-host>` 不在仓库里。按顺序试，别跳步、别扫网段：
 
 1. 读 `LOCAL.endpoints.md`（本机私有，已被 `.gitignore` 排除）或 `~/.config/craft-process/endpoints.json`。
 2. 读环境变量 `CRAFT_MCP_URL` / `CRAFT_BACKEND_URL`。
-3. 调一次 `craft_health`，看返回里有没有 `backend_url`（打了 [patch 10](../patches/10-backend-address-discovery.md) 就会有）。
-4. 还没有，用验证脚本试一个短名单，而不是扫端口：
+3. 调 `craft_health`，看返回里有没有 `backend_url`（打了 [patch 10](../patches/10-backend-address-discovery.md) 才有）。
+4. 用脚本验证短名单，而不是扫端口：
 
 ```bash
 python tools/craft_discover.py --mcp "$CRAFT_MCP_URL"
 ```
 
-它只验证同主机的已知候选，并用 `craft_health` 报告的服务名做指纹比对，端口开着但服务不对会被跳过。
+它只验证同主机的已知候选，并用 `craft_health` 报告的服务名做指纹比对；端口开着但服务不对会明确标成 `skip`。
 
-5. 仍然没有，停下来问部署负责人。**不要猜地址、不要扫网段**——扫到的多半是别人的服务。完整说明见 [08-endpoint-discovery.md](08-endpoint-discovery.md)。
+5. 仍然没有，停下来问部署负责人。**不要猜地址、不要扫网段**——扫到的多半是别人的服务。完整说明见 [08](08-endpoint-discovery.md)。
 
 拿到后照 [mcp.example.json](../mcp.example.json) 填。
 
 ## 1. 先证明壳活着
 
-```bash
-curl -sS -X POST "$CRAFT_MCP_URL" \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
-```
-
-判据：`200` + 响应头有 `mcp-session-id` + body 里有 `serverInfo`。
-**不要**用 `/health` 判活，这个端口可能没有该路由。
+向 `$CRAFT_MCP_URL` 发 `initialize`（命令见 [02 §1](02-quickstart.md)）。判据：`200` + `mcp-session-id` 头 + body 有 `serverInfo`。**不要**用 `/health` 判活。
 
 ## 2. 拿工具清单
 
-`tools/list`，期望看到 `craft_*` 一族（建任务、查询、工作台、特征复核、模板匹配/选择、槽位、工艺卡生成/编辑/导出）。数量对不上说明版本不同，以实际返回为准，不要凭记忆调不存在的工具。
+`tools/list`，期望 `craft_*` 一族。数量对不上说明版本不同，以实际返回为准，不要凭记忆调不存在的工具。
 
 ## 3. 上传图纸
 
-`craft_create_job` 的路径参数在**壳所在主机**解析，不是你本机。
-
-两条路：
-- 图纸已在壳可读的位置 → 传那个路径。
-- 否则 → 直传后端，但**不要只写一条 curl**：
+`craft_create_job` 的路径在**壳所在主机**解析，不是你本机。图纸不在壳可读位置时，直传后端：
 
 ```bash
 python tools/craft_upload.py --file drawing.png --backend "$CRAFT_BACKEND_URL" --timeout 300
 ```
 
-它做四件事：multipart 上传、原样打印响应、**先把 attempt 写进账本再把字节发出去**、按 sha256 去重。默认等 180 秒，不是 10 秒。
+拿到 `job_id` 后，**先把它写进上下文或文件，再解析响应其他字段**。`GET /api/jobs` 是 `405`，没有列表接口，`job_id` 一丢就没有查询入口。
 
-拿到 `job_id` 后，**先把它写进你自己的上下文或文件，再解析响应的其他字段**。这一步不能省：`GET /api/jobs` 是 405（`Allow: OPTIONS, POST`），没有列表接口，`job_id` 一丢就没有任何查询入口，剩下的唯一信息源是人的眼睛。
-
-退出码怎么处理：
+退出码处理：
 
 | 码 | 含义 | 动作 |
 | --- | --- | --- |
 | `0` | 上传成功 | 拿到 `job_id`，往下走 |
-| `4` | 同一文件在复用窗口内传过 | 直接用返回的 `job_id`；确实要新任务才加 `--force` |
+| `4` | 同一文件在复用窗口内传过 | 用返回的 `job_id`；确实要新任务才加 `--force` |
 | `2` | 超时，**状态未知** | 见下 |
-| `3` | 被拒（格式/HTTP 错误/连不上） | 修原因后重试，不需要对账 |
+| `3` | 被拒（格式 / HTTP 错误 / 连不上） | 修原因后重试，不需要对账 |
 
-状态未知时的正确顺序：`--list` 看账本 → 按 sha256、文件名、时间对账 → 确认没有再 `--force` 重传 → 告诉用户「可能多一个孤儿任务，不影响已有结果」。
+状态未知的顺序：`--list` 看账本 → 按 sha256、文件名、时间对账 → 确认没有再 `--force` 重传 → 告诉用户「可能多一个孤儿任务，不影响已有结果」。
 
-**不要把「请你去工作台看看有没有这个任务」当成唯一出路。** 账本里就有记录；把人工确认当成默认路径，等于把自动化降级成转述。同样，也不要因为怕重复建任务就把流程停死——`queued`/`running` 期间重复 create 才是浪费，对账之后的重传不是。
-
-只收 PDF / PNG / JPG。
+**不要把「请人去工作台看看」当成唯一出路。** 账本里有记录；把人工确认当默认路径，等于把自动化降级成转述。也不要因为怕重复建任务就把流程停死——`queued`/`running` 期间重复 create 才是浪费，对账后的重传不是。
 
 ## 4. 等识别
 
-轮询 `GET $CRAFT_BACKEND_URL/api/jobs/<id>` 或 `craft_wait_job`，到 `status=extracted` 且 `progress=100`。
-`queued`/`running` 期间**重复 create 会重复消耗算力**。
+轮询 `GET $CRAFT_BACKEND_URL/api/jobs/<id>` 或 `craft_wait_job`，到 `status=extracted` 且 `progress=100`。`queued`/`running` 期间重复 create 会重复消耗算力。
 
 ## 5. 读工作台（每次写之前都读）
 
 `craft_get_workbench`，默认 summary，要完整数据用 `detail="full"`。
 
-三件事必看：`revision`、`current_stage`、`blocking_action`；再核对返回体里的 `job_id` 等于你请求的 id。**不等就停**，见 [故障手册第 9 条](04-troubleshooting.md)。
+必看 `revision`、`current_stage`、`blocking_action`，并核对返回体的 `job_id` 等于你请求的 id。**不等就停**，见 [04 第 9 条](04-troubleshooting.md)。
 
 ## 6. 特征复核（最容易毁数据的一步）
 
-`POST /feature-review` 是**整表替换**，不是补丁。
-
-正确做法：
+`POST /feature-review` 是**整表替换**。四步不能省：
 
 1. 取 full 工作台的 `review.features` 完整数组。
-2. 就地改需要改的对象（`status` 置 `confirmed` 或 `rejected`）。
-3. `value` 一律转成**字符串**（壳的 schema 拒数字）。
+2. 就地改需要改的对象，`status` 置 `confirmed` 或 `rejected`。
+3. `value` 一律转**字符串**，壳的 schema 拒数字。
 4. 把**整张表**回传。
 
-只发 `{feature_id, decision}` 会丢掉 role/value/confidence，计数回到 unresolved。
+只发 `{feature_id, decision}` 会丢掉 role / value / confidence，计数回到 unresolved。
 
 判据：`counts.needs_review == 0`，`blocking_action` 前进。
 
-**每一条都要有人确认过才能写。** 不要自己批量确认；把待确认项列给人，等人回。
-
-怎么问，比问什么更影响效率。下面这种问法不要用：
-
-> 请按编号确认：1 总长 1786±0.3；2 最大外径 Φ126±0.1；3 小端 Φ72；4 螺纹 3"-80UN-3A；5 有外螺纹吗；6 有腰型键吗；7 有内键槽吗？可回复「1正确；2正确…」
-
-七项挤成一段，还要用户自己编号对齐，中间一项拿不准整句就得重写。改成三条规则：
-
-**默认值 + 只改例外。** 先说「系统读数如下，默认全部采用，只回需要改的」，然后给一张表：编号、项目、系统值、图纸原文。用户回「3 改成 +0.13，7 没有」就够了。
-
-**按类型分批。** 数值确认、有/无判断、看不清，是三种不同的回答方式，不要混在一条里。数值一次问完，存在性另起一段。
-
-**每项给证据。** 数值项附图上原文，检测项附 bbox 裁剪图。让人对着图判断，而不是对着你的转述判断。
-
-想省掉手工对齐，可以直接生成可点选的复核单：
+**每一条都要有人确认过才能写。不要自己批量确认。** 把待确认项列给人，等人回。问法见 [09](09-asking-humans.md)；超过 5 项或混了类型时直接生成复核单：
 
 ```bash
 python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet.html
 ```
 
-它把每项做成一张卡片（编号、系统值、图纸原文或裁剪图、四个选项），点完点「生成回填 JSON」，复制出来就是可以直接提交的数组。看不清的项会被标成 `needs_review` 留在数组里，不会被悄悄当成确认。
-
-写完之前把解析结果回显一遍：「我理解为 3 改为 +0.13、7 无，其余采用，对吗？」比事后返工便宜。
+写完之前把解析结果回显一遍再落库。
 
 ## 7. 模板匹配 → 选择
 
-`craft_template_match` 只是算候选，**候选不等于已选**。
-`craft_select_template` 才提交选择，可能超过 60s，超时后**先读工作台**，看到已选就继续，不要重选。
+`craft_template_match` 只算候选，**候选不等于已选**。`craft_select_template` 才提交，可能超过 60 秒；超时后**先读工作台**，已选就继续，不要重选。
 
-判据：`blocking_action` 前进、stage 进入 replace。**不要等 `replacement` 填充**——选择前它是 null，候选在 `decision.candidates`；`selected_template_id` 在有些版本里选完仍是 null，别拿它当唯一判据。
+判据：`blocking_action` 前进、stage 进入 replace。**不要等 `replacement` 填充**——选择前它是 null，候选在 `decision.candidates`；`selected_template_id` 在有些版本选完仍是 null，别拿它当唯一判据。
 
-**选候选不要只看 `match_strength`。** 25 个候选可以全是 `complete`。看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
+**选候选不要只看 `match_strength`。** 候选可以全是 `complete`，看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
 
-**选模板可能被 422 拒绝**（`模板缺少关键特征：XXX`）。这不是让你换模板，是服务端在告诉你它还缺一个结构判断。回到图纸确认该结构是否真实存在，再用 `feature_presence` 置 yes/no，然后重试选择。
+**参考图号不匹配时显式提示。** 把当前图号与 `reference_drawing` 并排列给用户。用户明确选择其他模板时可以遵从，但要记录为**人工选择**，并在生成前重点核对槽位和工序内容。
+
+**选择可能被 422 拒绝**（`模板缺少关键特征：XXX`）。这不是让你换模板，是服务端说它还缺一个结构判断。回图纸确认该结构是否存在，用 `feature_presence` 置 yes/no，再重试。
 
 ## 8. 槽位
 
-`craft_update_slots` 写值，`craft_review_slots` 记录复核。
-值的三个来源必须分清：图纸事实、人工决定、后端派生。**派生值（车/磨/镗余量）不得当原始值写入。**
+`craft_update_slots` 写值，`craft_review_slots` 记录复核。三个来源必须分清：图纸事实、人工决定、后端派生。**派生值不得当原始值写入。**
 
-三件事必须逐项核对，不要信服务端的建议：
+三件事逐项核对，不要信服务端建议：
 
-- **候选事实可能绑错槽位。** 见过 Ø64 的槽位被建议 Ø164、Ø157。先比 nominal 再用。
-- **派生值可能在生成阶段覆盖人工确认值。** 确认了 `-0.05/-0.10`，正式卡里回来的是 `-0.05/-0.13`。生成后逐行比对。
-- **公差 OCR 会错。** `+0.1` 被读成 `+0.01`，而服务端提示「以图纸为准」指的也是错的那个。放大原图看原始标注。
+- 候选事实可能绑错槽位。见过 Ø64 的槽位被建议 Ø164、Ø157。先比 nominal。
+- 派生值可能在生成阶段覆盖人工确认值。确认了 `-0.05/-0.10`，正式卡回来 `-0.05/-0.13`。生成后逐行比对。
+- 公差 OCR 会错。`+0.1` 被读成 `+0.01`，服务端「以图纸为准」指的也可能是错的那个。放大原图看标注。
+
+**公差被拒后不要猜格式。** 先确认图纸原文和工具接受的格式，做一次有依据的提交；仍被拒就保留图纸事实并停下，把校验问题转交处理。不要反复换写法——合法的 Ø75（0/−0.2）曾被反复判成格式无效，多次尝试没有推进任何状态。**停下来报告是正确结果。**
 
 ## 9. 生成与导出
 
-`craft_generate_process_card` **不一定是真正出卡的那一步**。实测它返回 200，但 `process_card` 仍是 null；official 卡是在 `craft_review_slots` 之后才出现的。
+`craft_generate_process_card` **不一定真正出卡**。实测返回 200 而 `process_card` 仍是 null；official 卡在 `craft_review_slots` 之后才出现。
 
-所以判据看状态，不看返回码：读工作台，要求 `process_card.mode == "official"` 且 `operations` 非空。还是 null 就调 `craft_review_slots` 再读。卡没出来就导出会得到带「待确认」占位的行。
+判据看状态：`process_card.mode == "official"` 且 `operations` 非空。还是 null 就调 `craft_review_slots` 再读。卡没出来就导出，会得到「待确认」占位行。
 
-导出优先直连后端，避免文件落在壳的容器目录里：
+**出卡前四项一起看，缺一不可：** `replacement.validation.status`、`unresolved_slots`、`blocking_action`、`process_card`。详细校验还有未解决槽位就不生成、不导出；摘要与详细校验矛盾时重读一次，仍矛盾就停下报告。细节见 [03](03-workflow-and-gates.md#出卡门槛四个字段一起看)。
+
+导出直连后端，避免文件落在壳的容器目录：
 
 ```bash
 curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/<id>/process-card/export"
 ```
 
-按响应 `Content-Type` 判断格式，别信文档里的后缀（实测有返回 XLSX 而当文档写 CSV 的情况）。
+按 `Content-Type` 判断格式，别信文档后缀（实测有返回 XLSX 而文档写 CSV）。
 
 ## 10. 写操作通用规则
 

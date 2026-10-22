@@ -1,69 +1,61 @@
-# Architecture
+# 01 · 架构：一个端点，两层服务
 
-## Two layers, one endpoint
-
-Clients see one URL. Internally there are two services with different responsibilities and failure modes.
+客户端只看到一个 URL，内部其实是两个职责和故障模式都不同的服务。
 
 ```
-┌────────────────┐   Streamable HTTP   ┌──────────────────────┐   plain HTTP   ┌─────────────────────────┐
-│ MCP client     │ ──────────────────> │ MCP shell            │ ─────────────> │ backend                 │
-│ (agent, CLI)   │ <────────────────── │ FastAPI + uvicorn    │ <───────────── │ Flask/Werkzeug          │
-└────────────────┘   SSE / JSON-RPC    │ tool schema,         │                │ jobs, extraction,       │
-                                       │ validation, mapping  │                │ templates, process card │
-                                       └──────────────────────┘                └─────────────────────────┘
+┌────────────┐  Streamable HTTP  ┌──────────────────┐   HTTP   ┌──────────────────┐
+│ MCP 客户端  │ ───────────────> │ MCP 壳            │ ───────> │ 业务后端          │
+│ agent / CLI│ <─────────────── │ FastAPI + uvicorn │ <─────── │ Flask/Werkzeug    │
+└────────────┘  SSE / JSON-RPC  │ 工具 schema、校验、│          │ 任务、识别、模板、 │
+                                │ 到 REST 的映射     │          │ 工艺卡            │
+                                └──────────────────┘          └──────────────────┘
 ```
 
-The shell owns the MCP protocol: `initialize`, `tools/list`, `tools/call`, and the JSON-RPC envelope. It also validates arguments and maps tool calls onto backend REST endpoints. It does **not** do extraction, template matching or card generation; those are backend concerns.
+**壳**负责 MCP 协议：`initialize`、`tools/list`、`tools/call` 和 JSON-RPC 信封，同时做参数校验并映射到后端 REST。它**不做**识别、模板匹配或出卡。
 
-The backend owns state: jobs, extracted features, the workbench, template candidates and selections, parameter slots, and the generated card. It is a Flask/Werkzeug application whose root path serves the web workbench.
+**后端**持有全部业务状态：任务、特征、工作台、模板候选与选择、参数槽位、工艺卡。Flask/Werkzeug 应用，根路径就是网页工作台。
 
-## Where state lives
+## 状态归属
 
-| State | Owner | Read via |
+| 状态 | 归属 | 读取方式 |
 | --- | --- | --- |
-| Job status and progress | backend | `GET /api/jobs/{id}` |
-| Extracted features, review decisions | backend | `GET /api/jobs/{id}/workbench` |
-| Template candidates | backend | workbench / `template-match` |
-| Selected template | backend | workbench `replacement` / `decision` |
-| Parameter slots | backend | workbench |
-| Generated card | backend | `GET /api/jobs/{id}/process-card` |
+| 任务状态与进度 | 后端 | `GET /api/jobs/{id}` |
+| 特征表与复核决定 | 后端 | `GET /api/jobs/{id}/workbench` |
+| 模板候选 | 后端 | 工作台 / `template-match` |
+| 已选模板 | 后端 | 工作台 `replacement` / `decision` |
+| 参数槽位 | 后端 | 工作台 |
+| 工艺卡 | 后端 | `GET /api/jobs/{id}/process-card` |
 
-Two consequences matter in practice.
+两条推论直接影响操作：工作台是唯一事实源，工具返回值只是它的投影——写入被拒时重读工作台，而不是重发同一个载荷；壳不持有业务状态，壳重启不丢任务，后端重启会丢。
 
-The workbench is the single source of truth. Tool responses are convenient projections of it. When any write is rejected, re-read the workbench rather than retrying the same payload.
+## revision
 
-The MCP shell is stateless with respect to business data. Restarting or losing the shell does not lose jobs; restarting the backend does.
+每次写操作都要带 `revision`。服务端与当前工作台比对，不一致返回 `409`。这是乐观并发，不是鉴权。
 
-## Revisions
+有些部署把 `revision` 做成可选并自动取最新值，同时回显 `revision_source: "auto"`。方便，但掩盖并发：两个客户端可以都写成功，其中一方的决定被静默覆盖。**传你实际读到的 revision。**
 
-Every write carries a `revision`. The server compares it with the current workbench revision and returns `409` on mismatch. This is optimistic concurrency, not authentication.
+## 分层排障
 
-Some deployments make `revision` optional and auto-read the latest value, echoing `revision_source: "auto"`. That is convenient but hides concurrent edits: two clients can both succeed while one silently overwrites the other's decisions. Pass the revision you actually read.
+工具调用失败时，先定位断点，再改任何东西。
 
-## Failure layering
-
-When a tool call fails, locate the break before changing anything.
-
-| Layer | Probe | Healthy signal |
+| 层 | 探针 | 健康信号 |
 | --- | --- | --- |
-| Network to shell | TCP connect to the MCP port | connection accepted |
-| MCP protocol | `initialize` request | `200` with `mcp-session-id` |
-| Tool discovery | `tools/list` | expected tool count |
-| Shell → backend | invoke a read-only tool, or hit the backend health path | `200` JSON |
-| Backend business | call the REST endpoint the tool maps to | expected payload |
+| 到壳的网络 | TCP 连接 MCP 端口 | 连接被接受 |
+| MCP 协议 | `initialize` | `200` 且带 `mcp-session-id` |
+| 工具发现 | `tools/list` | 工具数量符合预期 |
+| 壳 → 后端 | 调一个只读工具，或请求后端 health | `200` JSON |
+| 后端业务 | 直接请求工具对应的 REST 端点 | 返回预期载荷 |
 
-A shell that completes `initialize` and returns tools is a working MCP server. If tool calls then fail with a connection error, the break is below the MCP layer and client-side configuration changes will not help.
+能完成 `initialize` 并列出工具，说明壳是好的。此后工具调用报连接失败，断点就在 MCP 层之下，改客户端配置没有用。
 
-## Network topology traps
+## 网络拓扑陷阱
 
-Two deployment shapes recur.
+**同机同命名空间。** 壳用 loopback 就能到后端。简单，但只在两个进程都裸跑在同一台机器上时成立。
 
-**Same host, same namespace.** The shell can reach the backend at loopback. Simple, but only true when both run on the same machine outside containers.
+**壳在容器里，后端在宿主机上。** 容器内的 loopback 是容器自己，不是宿主机。配成 `127.0.0.1` 会永远失败，而同一个后端地址在其他机器上却是通的。修法是指向壳的命名空间里可达的地址（常见是容器网桥网关），并**重建**容器让环境变量重新注入——`restart` 不会重读 env。见 [patch 1](../patches/01-api-base-url.md)。
 
-**Shell in a container, backend on the host.** Loopback inside the container is the container itself, not the host. A configured base URL of `127.0.0.1` will fail forever, while the backend's public address works from anywhere else. The fix is to point the shell at an address that is routable from inside its namespace — commonly the container bridge gateway — and to recreate the container so the environment is re-injected. `restart` alone does not reload environment variables.
+这个形态的典型信号：后端 health 在你机器上返回 `200`，MCP 握手成功，所有业务工具都报连接失败，且错误文本里带 loopback 地址。
 
-Common signals of this shape: backend health returns `200` from your machine, the MCP handshake succeeds, every business tool returns a connection error, and the error text contains a loopback address.
+## 健康检查没有统一标准
 
-## Health endpoints are not standardised
-
-Do not assume `/health` exists on the MCP port. Some builds expose only `/mcp` and return `404` at the root. Probe the MCP endpoint with `initialize` instead; that is the authoritative liveness check for the shell. The backend's own health path is separate and usually does exist.
+不要假设 MCP 端口上一定有 `/health`。有些构建只暴露 `/mcp`，根路径直接 `404`。用 `initialize` 探壳，这是它的权威存活检查；后端自己的 health 路径是另一回事，通常存在。

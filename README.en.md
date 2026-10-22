@@ -1,8 +1,10 @@
 # craft-process MCP Field Guide
 
-English · [中文](README.md)
+English summary · [中文](README.md)
 
 Deployment notes, interface contracts, workflow gates and fixes for an MCP server that turns 2D drawings into structured features and template-driven process cards. Everything here comes from running the service against real drawings. The repository contains **no server source code, no company names, no drawing numbers and no real host addresses**.
+
+This page is a summary. The detailed documents are written in Chinese; `patches/` is in English. If you need the full procedure, follow the links below and read the Chinese pages — they are the source of truth. Agents can start from [llms.txt](llms.txt).
 
 ## What it is
 
@@ -33,7 +35,7 @@ The important part: the shell and the backend are separate processes and may not
 
 The full path, including multipart uploads and the acceptance criteria for each step, is in [docs/02-quickstart.md](docs/02-quickstart.md).
 
-**If you are an agent that will call this service**, skip that and read [docs/05-agent-playbook.md](docs/05-agent-playbook.md) instead: actions, acceptance checks and prohibitions only. The host is not in this repository; the playbook's section 0 says where to read it from.
+**If you are an agent that will call this service**, read [docs/05-agent-playbook.md](docs/05-agent-playbook.md): actions, acceptance checks and prohibitions only. The host is not in this repository; section 0 says where to read it from.
 
 ## Symptom index
 
@@ -43,14 +45,18 @@ The full path, including multipart uploads and the acceptance criteria for each 
 | "File not found" from a tool | paths resolve on the shell host |
 | 409 on a write | stale `revision`, re-read the workbench |
 | 409 when generating the card | candidates are not a selection |
+| Generation succeeds but no card appears | `slot-review` is what actually creates it |
+| Card tolerance differs from the confirmed value | derived rules recompute at generation |
 | Template selection times out but state moved | client timeout, server already committed |
 | Export produces nothing | file written inside the shell container |
+| Summary says no unresolved slots, detail says `partial` | gate signals disagree; stop and report |
+| A valid tolerance is rejected as malformed | stop guessing formats after one grounded attempt |
 
-Detailed triage in [docs/04-troubleshooting.md](docs/04-troubleshooting.md).
+Detailed triage is in [docs/04-troubleshooting.md](docs/04-troubleshooting.md), including the lost-`job_id` case.
 
 ## Fixes
 
-Nine notes, ordered by risk, with a suggested sequence in [docs/06-optimization-plan.md](docs/06-optimization-plan.md):
+Thirteen proposals, ordered by risk. The implementation sequence and the **current status of each one** are in [docs/06-optimization-plan.md](docs/06-optimization-plan.md):
 
 1. [Configurable backend base URL](patches/01-api-base-url.md) — deployment only, no data change.
 2. [Merge semantics for feature review](patches/02-feature-review-payload.md) — stop wiping the feature table.
@@ -62,6 +68,9 @@ Nine notes, ordered by risk, with a suggested sequence in [docs/06-optimization-
 8. [Slot value authority](patches/08-slot-value-authority.md) — confirmed values outrank derived ones.
 9. [Generation semantics and counts](patches/09-generate-semantics.md) — no-op generate, rejected counting, export type.
 10. [Backend address discovery](patches/10-backend-address-discovery.md) — let `craft_health` name the backend instead of hunting ports.
+11. [One validation result](patches/11-state-source-consistency.md) — gate signals must agree or fail loudly.
+12. [Structured dimension fields](patches/12-structured-dimension-fields.md) — nominal and deviations as numbers, strings for display only.
+13. [Saved vs confirmed vs gate-passed](patches/13-confirmation-states.md) — stop calling all three "success".
 
 A complete real run, including the revision timeline, is recorded in [docs/07-field-notes.md](docs/07-field-notes.md).
 
@@ -72,24 +81,27 @@ Human confirmation is a hard gate in this service, not an option. The three gate
 ## Layout
 
 ```
-README.md / README.en.md   this file and the Chinese version
+README.md / README.en.md   Chinese guide and this English summary
+llms.txt                   machine-readable entry point for agents
 LICENSE / NOTICE           Apache-2.0
 docs/01-architecture.md    two-layer architecture and layered triage
 docs/02-quickstart.md      connect, upload, run
-docs/03-workflow-and-gates.md  gates, constraints, red lines
-docs/04-troubleshooting.md symptom-driven runbook
-docs/05-agent-playbook.md  ten-step protocol for agents
-docs/06-optimization-plan.md  phased plan with acceptance criteria
-docs/07-field-notes.md        one real run, with revision timeline
+docs/03-workflow-and-gates.md  gates, value provenance, red lines
+docs/04-troubleshooting.md symptom-driven runbook (12 entries)
+docs/05-agent-playbook.md  actions, criteria and prohibitions for agents
+docs/06-optimization-plan.md  phased plan, acceptance criteria, patch status
+docs/07-field-notes.md        one real run, with evidence and timeline
 docs/08-endpoint-discovery.md finding the backend without port scans
 docs/09-asking-humans.md   question formats for text-only harnesses
 docs/10-harness-interaction.md  one question file, rendered per harness
 mcp.example.json           client config template (placeholder host)
+tools/README.md            the four scripts, their flags and exit codes
+tools/ask.py               neutral questions -> md / html / json / tui, and parse replies
 tools/craft_discover.py    verify candidate endpoints by service fingerprint
 tools/craft_upload.py      upload with a long timeout, a job ledger, hash dedupe
 tools/review_sheet.py      turn a workbench into a clickable review sheet
-tools/ask.py               neutral questions -> md / html / json, and parse replies
-patches/                   ten fix and improvement proposals
+examples/                  runnable sample inputs such as questions.json
+patches/                   thirteen English fix and improvement proposals
 ```
 
 ## License

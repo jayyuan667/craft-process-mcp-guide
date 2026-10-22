@@ -1,0 +1,64 @@
+{
+  "title": "特征与尺寸确认",
+  "note": "系统读数如下，默认全部采用，只回需要改的项（格式：编号=值；有/无写「有」「无」；看不清写「看不清」）。",
+  "items": [
+    {
+      "id": "overall_length",
+      "label": "总长",
+      "value": "1786",
+      "evidence": "图上外侧标注 1786±0.3，1776 为内侧尺寸",
+      "type": "text"
+    },
+    {
+      "id": "max_outer_diameter",
+      "label": "最大外径",
+      "value": "Φ126",
+      "evidence": "图上 Φ126±0.1",
+      "type": "text"
+    },
+    {
+      "id": "small_end_outer_diameter",
+      "label": "小端外径",
+      "value": "Φ72 +0.13/0",
+      "evidence": "上偏差 +0.13，下偏差在原图上不清",
+      "type": "text",
+      "uncertain": true
+    },
+    {
+      "id": "end_thread",
+      "label": "端部螺纹",
+      "value": "3\"-80UN-3A",
+      "evidence": "主视图左端螺纹标注，OCR 曾读错位数",
+      "type": "text"
+    },
+    {
+      "id": "external_thread",
+      "label": "主视图左端外螺纹",
+      "value": "有",
+      "evidence": "裁剪图 A；主视图左端",
+      "type": "presence"
+    },
+    {
+      "id": "face_key",
+      "label": "B 向端面腰型键",
+      "value": "有",
+      "evidence": "B 向视图 R14、28±0.026",
+      "type": "presence"
+    },
+    {
+      "id": "inner_key",
+      "label": "右端头部内键槽",
+      "value": "有",
+      "evidence": "技术要求提到槽内表面氮化；A-A 剖面可见",
+      "type": "presence"
+    },
+    {
+      "id": "template",
+      "label": "采用模板",
+      "value": "T01",
+      "evidence": "T01 的 template_preview.reference_drawing 与本图一致，槽位值本来属于这张图",
+      "type": "choice",
+      "options": ["T01", "T02", "T23"]
+    }
+  ]
+}

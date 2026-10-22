@@ -3,6 +3,8 @@
 > 环境：MCP 壳 `<mcp-host>:8764`，业务后端 `<backend-host>:5199`。图号、厂商与真实主机地址已脱敏。
 > 日期：2026-10-22。对象：一张轴类阀杆图纸，模板库中存在同图号参考卡 T01。
 
+这一页记录**证据**：看到了什么、数字是多少、revision 怎么走。操作步骤在 [02](02-quickstart.md)，agent 的动作用 [05](05-agent-playbook.md)，这里不重复。
+
 ## 0. 结论摘要
 
 链路能跑通，最终产出 18 道工序的正式 XLSX。但这次能跑通的关键不是特征提取，而是**模板库里存在同图号参考卡**。当前实现的本质是「模板命中 + 槽位替换」，不是「从图纸重建工艺」。
@@ -12,11 +14,9 @@
 1. `feature-review` 是整表替换，错误形状的提交会冲掉识别结果。
 2. 派生槽位在生成阶段会覆盖人工确认值。
 3. `select_template` 同步执行，客户端 60s 超时但服务端可能已成功。
-4. VLM 会读错公差，且“以图纸为准”的提示本身也可能错。
+4. VLM 会读错公差，且「以图纸为准」的提示本身也可能错。
 5. `generate` 在槽位未复核时返回 200 空操作，必须走 `slot-review`。
 6. 导出实际是 XLSX，且必须直连后端。
-
----
 
 ## 1. 接入
 
@@ -24,16 +24,7 @@
 
 本仓库只有部署笔记和补丁，没有服务端源码，也没有真实地址。必须先拿到 `<mcp-host>`，否则配置了也是死配置。
 
-壳与后端是两个进程（FastAPI/uvicorn 与 Flask/Werkzeug），任何一个不通都表现为“MCP 连不上”。排障时先分别探活：
-
-```bash
-curl -sS -X POST "http://<mcp-host>:8764/mcp" \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
-```
-
-判据：200 + `mcp-session-id` 头 + `serverInfo`。不要用 `/health` 判活。
+壳与后端是两个进程（FastAPI/uvicorn 与 Flask/Werkzeug），任何一个不通都表现为「MCP 连不上」。本次用 `initialize` 探壳、用 `/health` 探后端，分别确认。
 
 ### 1.2 客户端工具不会热加载
 
@@ -43,15 +34,11 @@ curl -sS -X POST "http://<mcp-host>:8764/mcp" \
 
 实际部署是公网 IP + 明文 HTTP，且未见鉴权。功能可用，但图纸与工艺数据没有保护。长期使用至少需要 TLS 和访问控制。
 
----
-
 ## 2. 上传与识别
 
 ### 2.1 路径在壳主机解析
 
-`craft_create_job` 接收的是路径，且按 MCP 壳所在主机解析。传本机路径没有意义，工具看不到本机文件。
-
-可用的两条路：图纸已在壳可读的位置就传那个路径；否则直传后端 multipart：
+`craft_create_job` 接收路径，按 MCP 壳所在主机解析；传本机路径，工具看不到。本次改为直传后端：
 
 ```bash
 curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
@@ -59,11 +46,11 @@ curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
   -F "library_key=default"
 ```
 
-返回 `job_id` 后，后续全走 MCP。
+拿到 `job_id` 后，后续全走 MCP。
 
 ### 2.2 识别耗时
 
-本次从 `queued` 到 `extracted` 约 70 秒，进度长时间停在 35%。必须轮询，不能在 `queued/running` 时重复 create，否则重复消耗算力。
+从 `queued` 到 `extracted` 约 70 秒，进度长时间停在 35%。必须轮询。
 
 ### 2.3 特征召回率
 
@@ -74,9 +61,7 @@ curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
 
 图上的 180、70、285.5、1047、278±0.05、195±0.05、Ø62±0.1、Ø95±0.05、SR94/SR92.9 等均未进入特征表。最终工艺卡里的尺寸主要来自模板槽位，而不是这些特征。
 
-**结论：特征提取服务于模板匹配和少量尺寸替换；不要指望它完整还原图纸。**
-
----
+**结论：特征提取服务于模板匹配和少量尺寸替换，不要指望它完整还原图纸。**
 
 ## 3. 特征复核
 
@@ -102,24 +87,22 @@ curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
 
 | 结构 | YOLO 框位置 | 实际判断 |
 | --- | --- | --- |
-| 键槽 | 尺寸标注区（误检） | 技术要求明确“键槽及周围 5mm 不氮化”，A-A 剖面有键槽 → 存在 |
+| 键槽 | 尺寸标注区（误检） | 技术要求明确「键槽及周围 5mm 不氮化」，A-A 剖面有键槽 → 存在 |
 | 端面腰型键 | A-A 剖面（误检） | B 向视图有腰型槽（R14、28±0.026）→ 归入球头带键槽 |
 | 四方 | 过渡圆角（误检） | 主视图未找到 → 按人工判断处理 |
 
-这里最容易犯的错是“检测框错就删特征”。正确做法是分开判断：**检测框可以否掉，特征存在性按图纸文字和视图另行确认。**
+这里最容易犯的错是「检测框错就删特征」。正确做法是分开判断：**检测框可以否掉，特征存在性按图纸文字和视图另行确认。**
 
 ### 3.4 结构特征走另一条工具
 
 - 特征表 → `craft_feature_review`
-- `auto_features` / `low_frequency` 的“有/没有” → `craft_feature_presence`
+- `auto_features` / `low_frequency` 的「有/没有」→ `craft_feature_presence`
 
-两套 ID：`yolo:1:1:四方` 与 `SQUARE`，容易混。本次提交 presence 后，服务端顺带触发了模板匹配，一步完成“保存结构 + 重新匹配”。
+两套 ID：`yolo:1:1:四方` 与 `SQUARE`，容易混。本次提交 presence 后，服务端顺带触发了模板匹配，一步完成「保存结构 + 重新匹配」。
 
 ### 3.5 分支条件为空
 
 材料、毛坯类型、路线前缀三个 branch condition 均为空，图上也没有材料。模板匹配仍能完成，说明它们不是硬门槛；但若模板库按材料分支，匹配质量会受影响。
-
----
 
 ## 4. 模板匹配与选择
 
@@ -127,7 +110,7 @@ curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
 
 workbench 候选只含 `template_id`、匹配特征、工序数；参考图号在 `candidate.template_preview.reference_drawing` 里。
 
-本次 T01 与 T02 都是 `match_strength=complete`、18 道工序、四条特征全命中，但 T01 的参考图号等于当前图号，T02 是另一张图（更大尺寸档）。**只看 match_strength 会选错。**
+本次有 11 个候选，T01 与 T02 都是 `match_strength=complete`、18 道工序、四条特征全命中，但 T01 的参考图号等于当前图号，T02 是另一张图（更大尺寸档）。**只看 match_strength 会选错。**
 
 ### 4.2 `select_template` 超时但服务端成功
 
@@ -139,19 +122,17 @@ workbench 候选只含 `template_id`、匹配特征、工序数；参考图号�
 
 期间后端短暂拒绝连接，随后自行恢复。**超时不等于失败；重试才会造成并发写。** 正确动作是读 workbench，看到已选就继续。
 
----
-
 ## 5. 槽位与正式卡
 
 ### 5.1 槽位候选事实绑定错误
 
-工序 30/50 的小头 Ø64 槽位状态为 `unresolved`，但 `candidate_facts` 给的是 Ø164 和 Ø157，与 Ø64 完全不符；`conflicting_values` 则是“Ø64，-0.42，-0.445”和“Ø64”。最后只能人工直接写值，不走候选事实绑定。
+工序 30/50 的小头 Ø64 槽位状态为 `unresolved`，但 `candidate_facts` 给的是 Ø164 和 Ø157，与 Ø64 完全不符；`conflicting_values` 则是「Ø64，-0.42，-0.445」和「Ø64」。最后只能人工直接写值，不走候选事实绑定。
 
 ### 5.2 VLM 读错公差
 
-服务端把某外圆 Ø157 读成 `+0.01/0`，并提示“与模板参考值 +0.1/0 不一致，以图纸为准”。放大原图后确认，图上就是 **+0.1/0**，模板反而正确，是 VLM 多读了一个 0。
+服务端把某外圆 Ø157 读成 `+0.01/0`，并提示「与模板参考值 +0.1/0 不一致，以图纸为准」。放大原图后确认，图上就是 **+0.1/0**，模板反而正确，是 VLM 多读了一个 0。
 
-**公差必须放大原图人工核对，不能信服务端的“以图纸为准”。**
+**公差必须放大原图人工核对，不能信服务端的「以图纸为准」。**
 
 ### 5.3 派生槽位覆盖人工确认值
 
@@ -168,7 +149,7 @@ workbench 候选只含 `template_id`、匹配特征、工序数；参考图号�
 
 槽位全部 `confirmed`（revision 6）后调用 `craft_generate_process_card`，返回 200，但 `process_card` 仍为 null，`blocking_action` 还是 `export_card`。
 
-真正生成 official 卡的是 `craft_review_slots`（revision 6 → 8）。在此之前导出，工序 30/50 会保留“待确认”占位。
+真正生成 official 卡的是 `craft_review_slots`（revision 6 → 8）。在此之前导出，工序 30/50 会保留「待确认」占位。
 
 ### 5.5 导出实际是 XLSX
 
@@ -187,9 +168,7 @@ curl -sS -o process-card.xlsx \
   "http://<backend-host>:5199/api/jobs/<job_id>/process-card/export"
 ```
 
----
-
-## 6. 本次 revision 时间线
+## 6. revision 时间线
 
 | 步骤 | revision | 结果 |
 | --- | --- | --- |
@@ -203,8 +182,6 @@ curl -sS -o process-card.xlsx \
 | slot-review | 6 → 8 | official 卡生成，18 道工序 |
 | edit_process_card | 8 → 9 | 修正派生公差 |
 
----
-
 ## 7. 跑通的关键前提
 
 1. **模板库存在同图号参考卡。** 槽位值和工艺文本本来就属于这张图，替换只是校正。换一张没有同图号模板的图纸，当前召回率和绑定质量不足以支撑可信的卡。
@@ -212,9 +189,7 @@ curl -sS -o process-card.xlsx \
 3. **超时后先读状态、不重试。** 避免重复选模板。
 4. **公差和派生值逐项对图核对。** 不直接接受服务端建议。
 
----
-
-## 8. 修复优先级
+## 8. 由本次证据支持的修复优先级
 
 | 优先级 | 问题 | 建议 |
 | --- | --- | --- |
@@ -227,17 +202,30 @@ curl -sS -o process-card.xlsx \
 | P2 | 公差 OCR | 保留原始文本，对 `+0.1` / `+0.01` 这类歧义强制人工确认 |
 | P3 | 导出格式与落盘 | 文档与响应头对齐；提供客户端可下载的产物地址 |
 
----
+每条对应的提案与当前状态见 [06](06-optimization-plan.md)。
 
-## 9. 操作清单（下次直接照做）
+## 9. 补充观察：门禁信号矛盾与合法公差被拒（另一次运行）
 
-1. 探活壳与后端，分别确认。
-2. 图纸走后端 multipart 上传，拿到 `job_id`。
-3. 轮询到 `extracted` / `progress=100`。
-4. 读取 `workbench?detail=full`，**先存盘**。
-5. 特征复核必须回传完整对象，同时带 `status` 和 `decision`。
-6. 结构存在性用 `feature_presence`，不要用 `feature_review` 改。
-7. `template_match` 后看 `template_preview.reference_drawing`，不要只看 match strength。
-8. `select_template` 超时先读 workbench，确认未选再重试。
-9. 槽位逐项对图核对，尤其是公差和派生值。
-10. 必须 `slot_review` 才会生成 official 卡；导出直连后端，按实际文件头命名。
+> 2026-10-22，另一张图纸。本节记录的是使用者侧复述的现象，没有与第 1–6 节的时间线合并，也没有补齐 revision 明细。
+
+### 9.1 摘要与详细校验互相矛盾
+
+工作台摘要看起来没有未解决项，`blocking_action` 也已经越过槽位复核，但 `replacement.validation.status` 是 `partial`，详细校验里仍有未解决槽位。
+
+这类矛盾的危险在于两个方向都会错：只看摘要，会把「参数已写入」当成「正式卡已具备生成条件」；只看详细校验，又会因为状态机已经前进而卡住。二者不是同一次校验的投影，客户端只能自己发明优先级。
+
+### 9.2 合法公差被反复判格式无效
+
+图上写的是 Ø75（0/−0.2），提交后被判格式无效。换了几种写法继续提交，状态没有任何推进——既没有变成 confirmed，也没有给出可执行的修复动作。
+
+这暴露的是取值模型的问题：槽位只有字符串，校验器只能从显示文本里解析工程标注，合法但不在解析器词表里的写法就会被当成错误。反复猜格式没有让状态收敛，正确动作是在一次有依据的提交后停下。
+
+### 9.3 模板来源不匹配
+
+本次还出现过参考图号与当前图号不一致、由使用者明确选择其他模板的情况。现有流程只要求看 `reference_drawing`，没有要求把「当前图号 / 参考图号」并列展示，也没有要求把这种选择记录成人工选择。补上记录后，生成前的槽位与工序核对才有明确对象。
+
+### 9.4 由本节支持的提案
+
+- [patch 11](../patches/11-state-source-consistency.md)：门禁信号同源，矛盾时返回明确错误。
+- [patch 12](../patches/12-structured-dimension-fields.md)：名义尺寸与上下偏差结构化，字符串只作展示。
+- [patch 13](../patches/13-confirmation-states.md)：保存、人工确认、过闸三态分开表达。
