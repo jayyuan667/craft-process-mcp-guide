@@ -86,6 +86,7 @@ docs/09-asking-humans.md   question formats for text-only harnesses
 docs/10-harness-interaction.md  one question file, rendered per harness
 mcp.example.json           client config template (placeholder host)
 tools/craft_discover.py    verify candidate endpoints by service fingerprint
+tools/craft_upload.py      upload with a long timeout, a job ledger, hash dedupe
 tools/review_sheet.py      turn a workbench into a clickable review sheet
 tools/ask.py               neutral questions -> md / html / json, and parse replies
 patches/                   ten fix and improvement proposals

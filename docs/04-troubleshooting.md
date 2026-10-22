@@ -91,3 +91,13 @@ Check: re-request and compare `job_id` several times. Confirm the backend is not
 Cause: observed in a deployment whose workers kept workbench state in process memory; requests landing on a different worker returned another job's snapshot.
 
 Action: stop before writing. A review POST against a mismatched workbench can affect the wrong job. Confirm the deployment shares job state across workers, or pin requests to one worker, before continuing. Always compare the response's `job_id` with the requested id after every write.
+
+## 10. The upload times out and there is no job id
+
+Observed: the multipart POST to `/api/jobs` gets no response within the client's wait window. No `job_id` arrives. The workbench cannot be queried because the id is unknown, and the agent stops, asking the user whether a task appeared.
+
+Check: first whether the request even left the machine. Then whether the upload ledger has an attempt for that file — `python tools/craft_upload.py --list`.
+
+Cause: the client gave up before the server answered, which says nothing about whether the job was created. There is no recovery path through the API: `GET /api/jobs` returns `405` with `Allow: OPTIONS, POST`, so jobs cannot be enumerated. A ten-second wait plus no ledger is enough to lose the run.
+
+Action: do not re-upload blindly, but do not deadlock either. Match the file's sha256 against the ledger; if an attempt has no result, the state is genuinely unknown — re-upload with `--force` and disclose that at most one orphan job may exist, which does not affect any existing result. For the next run, upload through `tools/craft_upload.py`, which records the attempt before sending and defaults to a 180-second wait. See [02-quickstart.md](02-quickstart.md) §2 and [05-agent-playbook.md](05-agent-playbook.md) §3.

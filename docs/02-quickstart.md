@@ -41,12 +41,27 @@ Two workable patterns:
 **B. Upload directly to the backend.** The backend accepts multipart uploads. If you do not know its address, [docs/08-endpoint-discovery.md](08-endpoint-discovery.md) gives the order to try — and `tools/craft_discover.py` verifies a short candidate list instead of scanning ports.
 
 ```bash
-curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
-  -F "files=@./drawing.png" \
-  -F "library_key=default"
+export CRAFT_BACKEND_URL=http://<backend-host>:5199
+python tools/craft_upload.py --file ./drawing.png
+# job_id   JOB-20261022-...
+# 耗时     1.8s    HTTP 200
 ```
 
-Response contains a `job_id`. Continue the rest of the chain through MCP using that id.
+The script exists because the upload is the one step where a client-side timeout destroys the whole run. `GET /api/jobs` is not a list endpoint — it answers `405`, `Allow: OPTIONS, POST` — so a `job_id` that never arrives cannot be recovered by querying; only by asking a person to look at the workbench. To make that unnecessary, every upload is written to a ledger at `~/.config/craft-process/jobs.jsonl` **before** the bytes are sent:
+
+```json
+{"event":"attempt","attempt_id":"…","sha256":"…","file":"…","backend":"…"}
+{"event":"result","attempt_id":"…","job_id":"JOB-…"}
+```
+
+A timeout leaves an attempt with no result. That is neither success nor failure, and the script says so instead of guessing:
+
+```bash
+python tools/craft_upload.py --list            # 成功 / 失败 / 未知，逐条列出
+python tools/craft_upload.py --file ./drawing.png --force   # 确认没建出来再重传
+```
+
+Exit codes: `0` uploaded, `4` the same file was uploaded within the reuse window (returns that `job_id`; add `--force` to create a second job anyway), `2` state unknown, `3` rejected or unreachable. The default wait is 180 seconds — ten is not enough and is what produces the "did it work?" dead end. Continue the rest of the chain through MCP using the `job_id`.
 
 Accepted formats are PDF, PNG and JPG. Anything else is rejected at upload.
 

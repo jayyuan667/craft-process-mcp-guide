@@ -101,6 +101,7 @@ docs/09-asking-humans.md   向人提问的格式与回答语法
 docs/10-harness-interaction.md 按 harness 能力分档的交互方式
 mcp.example.json           客户端配置模板（地址用占位符）
 tools/craft_discover.py    CLI；验证候选地址并做服务名指纹比对
+tools/craft_upload.py      上传图纸：长超时、账本记账、按哈希去重、超时判为未知
 tools/review_sheet.py      把工作台导成可点选的特征复核单
 tools/ask.py               中立问题清单 → md / html / json，并解析回复
 patches/                   十份修复与改进方案

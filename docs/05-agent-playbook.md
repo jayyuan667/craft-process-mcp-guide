@@ -45,7 +45,28 @@ curl -sS -X POST "$CRAFT_MCP_URL" \
 
 两条路：
 - 图纸已在壳可读的位置 → 传那个路径。
-- 否则 → 直传后端：`curl -F "files=@drawing.png" -F "library_key=default" "$CRAFT_BACKEND_URL/api/jobs"`，拿回 `job_id`，后续全走 MCP。
+- 否则 → 直传后端，但**不要只写一条 curl**：
+
+```bash
+python tools/craft_upload.py --file drawing.png --backend "$CRAFT_BACKEND_URL" --timeout 300
+```
+
+它做四件事：multipart 上传、原样打印响应、**先把 attempt 写进账本再把字节发出去**、按 sha256 去重。默认等 180 秒，不是 10 秒。
+
+拿到 `job_id` 后，**先把它写进你自己的上下文或文件，再解析响应的其他字段**。这一步不能省：`GET /api/jobs` 是 405（`Allow: OPTIONS, POST`），没有列表接口，`job_id` 一丢就没有任何查询入口，剩下的唯一信息源是人的眼睛。
+
+退出码怎么处理：
+
+| 码 | 含义 | 动作 |
+| --- | --- | --- |
+| `0` | 上传成功 | 拿到 `job_id`，往下走 |
+| `4` | 同一文件在复用窗口内传过 | 直接用返回的 `job_id`；确实要新任务才加 `--force` |
+| `2` | 超时，**状态未知** | 见下 |
+| `3` | 被拒（格式/HTTP 错误/连不上） | 修原因后重试，不需要对账 |
+
+状态未知时的正确顺序：`--list` 看账本 → 按 sha256、文件名、时间对账 → 确认没有再 `--force` 重传 → 告诉用户「可能多一个孤儿任务，不影响已有结果」。
+
+**不要把「请你去工作台看看有没有这个任务」当成唯一出路。** 账本里就有记录；把人工确认当成默认路径，等于把自动化降级成转述。同样，也不要因为怕重复建任务就把流程停死——`queued`/`running` 期间重复 create 才是浪费，对账之后的重传不是。
 
 只收 PDF / PNG / JPG。
 
