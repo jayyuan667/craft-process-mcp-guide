@@ -2,7 +2,7 @@
 
 这一页是给**要直接驱动这个 MCP 的 agent**看的：不给背景，只给动作、判据和禁令。人类读 [02-quickstart.md](02-quickstart.md)。
 
-要人做判断时，按 [09-asking-humans.md](09-asking-humans.md) 的格式问——尤其在没有结构化提问控件的环境里，散文式提问会让人多花几倍时间。
+要人做判断时，按 [09-asking-humans.md](09-asking-humans.md) 的格式问——尤其在没有结构化提问控件的环境里，散文式提问会让人多花几倍时间。不同客户端的渲染方式见 [10-harness-interaction.md](10-harness-interaction.md)。
 
 ## 0. 拿地址
 
