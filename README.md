@@ -63,12 +63,15 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 
 ## 修复方案
 
-三份按「会不会毁数据」排序的补丁说明：
+七份说明，按「会不会毁数据」排序，实施顺序见 [docs/06-optimization-plan.md](docs/06-optimization-plan.md)：
 
 1. [后端地址可配置](patches/01-api-base-url.md) — 不改数据，只改部署。
 2. [特征复核改为合并语义](patches/02-feature-review-payload.md) — 防止整张特征表被覆盖。
 3. [`create_job` 接收文件内容](patches/03-file-content-input.md) — 让客户端不必与后端共享文件系统。
 4. [超时与导出](patches/04-timeout-and-export.md) — 长任务与产物落地。
+5. [暴露预览工艺卡](patches/05-draft-process-card-tools.md) — 补上页面有、MCP 没有的复核环节。
+6. [增加 `next_action` 工具](patches/06-next-action-tool.md) — 把下一步放进协议，而不是文档。
+7. [任务状态一致性](patches/07-state-consistency.md) — 防止读错任务、写错任务。
 
 ## 工作流与闸门
 
@@ -84,8 +87,9 @@ docs/02-quickstart.md      从接入到出卡
 docs/03-workflow-and-gates.md  闸门、约束与红线
 docs/04-troubleshooting.md 按症状查的故障手册
 docs/05-agent-playbook.md  给 agent 的十步操作协议
+docs/06-optimization-plan.md 分三批的优化方案与验收标准
 mcp.example.json           客户端配置模板（地址用占位符）
-patches/                   四份修复方案
+patches/                   七份修复与改进方案
 ```
 
 ## 许可
