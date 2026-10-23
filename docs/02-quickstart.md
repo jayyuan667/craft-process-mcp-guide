@@ -11,7 +11,7 @@
   "mcpServers": {
     "craft-process": {
       "type": "http",
-      "url": "http://<mcp-host>:8764/mcp"
+      "url": "http://<mcp-host>:<mcp-port>/mcp"
     }
   }
 }
@@ -22,7 +22,7 @@
 不依赖客户端库验证壳：
 
 ```bash
-curl -sS -X POST "http://<mcp-host>:8764/mcp" \
+curl -sS -X POST "http://<mcp-host>:<mcp-port>/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
@@ -41,7 +41,7 @@ curl -sS -X POST "http://<mcp-host>:8764/mcp" \
 **B. 直接上传到后端。** 后端接受 multipart。不知道地址就按 [08](08-endpoint-discovery.md) 找，或用 `tools/craft_discover.py` 验证一个短名单，不要扫端口。
 
 ```bash
-export CRAFT_BACKEND_URL=http://<backend-host>:5199
+export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
 python tools/craft_upload.py --file ./drawing.png
 # job_id   40d8e960017045b583a78b91d1a07b6f
 # 耗时     1.8s    HTTP 202
@@ -76,7 +76,7 @@ python tools/craft_upload.py --file ./drawing.png --force  # 对账确认没建�
 识别是异步的。轮询到终态：
 
 ```bash
-curl -sS "http://<backend-host>:5199/api/jobs/<job_id>"
+curl -sS "http://<backend-host>:<backend-port>/api/jobs/<job_id>"
 ```
 
 判据：`status` 到 `extracted`，`progress` 为 `100`。`queued` / `running` 期间不要重复 create，那会重复消耗一次识别算力。
@@ -86,7 +86,7 @@ curl -sS "http://<backend-host>:5199/api/jobs/<job_id>"
 ## 4. 读工作台
 
 ```bash
-curl -sS "http://<backend-host>:5199/api/jobs/<job_id>/workbench?detail=full"
+curl -sS "http://<backend-host>:<backend-port>/api/jobs/<job_id>/workbench?detail=full"
 ```
 
 工作台里有 `revision`、`current_stage`、`blocking_action`、各阶段状态、`review.features` 特征表，以及后续的 `replacement`（模板）和槽位数据。
@@ -147,7 +147,7 @@ curl -sS "http://<backend-host>:5199/api/jobs/<job_id>/workbench?detail=full"
 
 ```bash
 curl -sS -o process-card.xlsx \
-  "http://<backend-host>:5199/api/jobs/<job_id>/process-card/export"
+  "http://<backend-host>:<backend-port>/api/jobs/<job_id>/process-card/export"
 ```
 
 按响应 `Content-Type` 和文件头判断格式，不要信文档里的后缀：有些构建返回 XLSX，而文档写的是 CSV。见 [patch 4](../patches/04-timeout-and-export.md)。

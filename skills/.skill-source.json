@@ -1,0 +1,20 @@
+{
+  "repo": "jayyuan667/craft-process-mcp-guide",
+  "derived_at": "2026-10-23",
+  "authoritative_paths": [
+    "docs/01-architecture.md",
+    "docs/03-workflow-and-gates.md",
+    "docs/04-troubleshooting.md",
+    "docs/05-agent-playbook.md",
+    "docs/08-endpoint-discovery.md",
+    "docs/11-portability.md"
+  ],
+  "docs_commits": {
+    "docs/01-architecture.md": "d89cc0700014679d2a728224ae0447cd87e0aec2",
+    "docs/03-workflow-and-gates.md": "d89cc0700014679d2a728224ae0447cd87e0aec2",
+    "docs/04-troubleshooting.md": "b5ead434fec58a2367bdafa66c1f03a29ad8d28c",
+    "docs/05-agent-playbook.md": "fc460d1b41fc50d0e9f001ce5c6b3172929536a7",
+    "docs/08-endpoint-discovery.md": "48493b3599292cc1c9b14df11459ffdf53ffa71d",
+    "docs/11-portability.md": "fc460d1b41fc50d0e9f001ce5c6b3172929536a7"
+  }
+}

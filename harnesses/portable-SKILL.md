@@ -2,7 +2,7 @@
 
 给没有技能系统、也装不了 MCP 的 harness 用：把这份文件整个放进系统提示或项目规则。有技能系统时用拆分的两个 skill，别用这份。
 
-把二维图纸跑成模板工艺卡。服务两层：MCP 壳（`:8764/mcp`）+ 业务后端（Flask，`:5199`）。本流程推荐直接用 CLI，不依赖 MCP 客户端。
+把二维图纸跑成模板工艺卡。服务两层：MCP 壳（`:<mcp-port>/mcp`）+ 业务后端（Flask，`:<backend-port>`）。本流程推荐直接用 CLI，不依赖 MCP 客户端。
 
 ## 铁律（先读这段）
 
@@ -22,19 +22,19 @@
 
 ```json
 // Claude 桌面端 / Claude Code（.mcp.json 或客户端设置）
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 
 // WorkBuddy ~/.workbuddy/mcp.json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 
 // opencode opencode.json
-{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 ```
 
 ```toml
 # Codex ~/.codex/config.toml
 [mcp_servers.craft-process]
-url = "http://<mcp-host>:8764/mcp"
+url = "http://<mcp-host>:<mcp-port>/mcp"
 ```
 
 配完验三件事：**新开会话**（工具清单不热加载，这是最常见的失败）、`initialize` 返回 200 且带 `mcp-session-id`、`tools/list` 是 17 个。只过第二件说明壳活着但工具没挂上。
@@ -46,7 +46,7 @@ url = "http://<mcp-host>:8764/mcp"
 ## 1. 一次完整链路
 
 ```bash
-export CRAFT_BACKEND_URL=http://<backend-host>:5199
+export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py wait
 python tools/craft_flow.py dump
@@ -54,7 +54,7 @@ python tools/craft_flow.py previews --download ./previews
 python tools/craft_flow.py review   --answers review.json
 python tools/craft_flow.py presence --answers presence.json
 python tools/craft_flow.py match
-python tools/craft_flow.py select T10
+python tools/craft_flow.py select <template-id>
 python tools/craft_flow.py slots    --values slots.json
 python tools/craft_flow.py finalize
 python tools/craft_flow.py edit     --operations ops.json
@@ -109,7 +109,7 @@ python tools/craft_flow.py export process-card.xlsx
 
 ```json
 {"features": [{"feature_id": "KEYWAY", "presence": "yes"}],
- "branch_conditions": {"material": "GH901", "billet_type": "大锻件", "route_prefix": "28F"},
+ "branch_conditions": {"material": "<material>", "billet_type": "<billet-type>", "route_prefix": "<route-prefix>"},
  "revision": 3}
 ```
 
@@ -130,7 +130,7 @@ python tools/craft_flow.py export process-card.xlsx
 `POST /slots` 写值，`POST /slot-review` 记录复核并出卡。
 
 ```json
-{"values": {"T10-30-0": {"value": "φ77，0，-0.025"}}, "revision": 6}
+{"values": {"<template-id>-30-0": {"value": "φ77，0，-0.025"}}, "revision": 6}
 ```
 
 值格式跟 `display_value` 走（全角逗号、φ 前缀）。图纸事实 / 人工决定 / 后端派生三类不可混用；`source: derived_tolerance` 的派生槽位留空。

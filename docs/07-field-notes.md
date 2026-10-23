@@ -1,6 +1,6 @@
 # 07 · 现场笔记：图纸 → 模板工艺卡的一次完整链路
 
-> 环境：MCP 壳 `<mcp-host>:8764`，业务后端 `<backend-host>:5199`。图号、厂商与真实主机地址已脱敏。
+> 环境：MCP 壳 `<mcp-host>:<mcp-port>`，业务后端 `<backend-host>:<backend-port>`。图号、厂商与真实主机地址已脱敏。
 > 日期：2026-10-22。对象：一张轴类阀杆图纸，模板库中存在同图号参考卡 T01。
 
 这一页记录**证据**：看到了什么、数字是多少、revision 怎么走。操作步骤在 [02](02-quickstart.md)，agent 的动作用 [05](05-agent-playbook.md)，这里不重复。
@@ -41,7 +41,7 @@
 `craft_create_job` 接收路径，按 MCP 壳所在主机解析；传本机路径，工具看不到。本次改为直传后端：
 
 ```bash
-curl -sS -X POST "http://<backend-host>:5199/api/jobs" \
+curl -sS -X POST "http://<backend-host>:<backend-port>/api/jobs" \
   -F "files=@drawing.png" \
   -F "library_key=default"
 ```
@@ -165,7 +165,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 
 ```bash
 curl -sS -o process-card.xlsx \
-  "http://<backend-host>:5199/api/jobs/<job_id>/process-card/export"
+  "http://<backend-host>:<backend-port>/api/jobs/<job_id>/process-card/export"
 ```
 
 ## 6. revision 时间线

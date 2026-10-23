@@ -1,6 +1,6 @@
 # 工具参考
 
-五个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步，以及「换一个 harness 怎么跑」这件事。
+六个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步，以及「换一个 harness 怎么跑」这件事。
 
 ```bash
 python3 --version        # 3.8+
@@ -32,7 +32,7 @@ python tools/craft_flow.py export process-card.xlsx
 把图纸以 multipart 上传到后端，**在发字节之前**把这次尝试写进账本，并按 sha256 去重。`GET /api/jobs` 是 `405`，没有列表接口，`job_id` 丢了只能靠账本对账，所以这一步必须记账。
 
 ```bash
-python tools/craft_upload.py --file drawing.png --backend http://<backend-host>:5199
+python tools/craft_upload.py --file drawing.png --backend http://<backend-host>:<backend-port>
 python tools/craft_upload.py --file drawing.png --timeout 300
 python tools/craft_upload.py --list
 python tools/craft_upload.py --file drawing.png --force
@@ -59,14 +59,14 @@ python tools/craft_upload.py --file drawing.png --force
 验证后端地址，不扫端口。先问壳（`craft_health`）要服务名，再对短名单请求 `/health`，只有 `service` 与壳报告的一致才认可。
 
 ```bash
-python tools/craft_discover.py --mcp http://<mcp-host>:8764/mcp
-python tools/craft_discover.py --mcp ... --ports 5199,5200 --save endpoints.json
+python tools/craft_discover.py --mcp http://<mcp-host>:<mcp-port>/mcp
+python tools/craft_discover.py --mcp ... --ports <backend-port>,5200 --save endpoints.json
 ```
 
 | 参数 | 默认 | 说明 |
 | --- | --- | --- |
 | `--mcp` | 必填 | MCP 端点 |
-| `--ports` | `5199` | 逗号分隔的候选端口 |
+| `--ports` | `<backend-port>` | 逗号分隔的候选端口 |
 | `--save` | — | 把结果写成 JSON |
 
 退出码：`0` 找到并验证通过；`2` 没找到；`1` 用法错误或连不上壳。输出里 `skip` 表示端口开着但服务指纹不匹配。见 [docs/08](../docs/08-endpoint-discovery.md)。
@@ -106,3 +106,15 @@ python tools/ask.py parse  --in q.json --reply "3=Φ72±0.05; 7无; 其余采用
 | `parse` | `--in`，`--reply` | 把 `3=值` / `3正确` / `7有` / `7无` / `7看不清` / `其余采用` 解析成统一 answers |
 
 统一状态只有七个：`confirmed`、`corrected`、`present`、`absent`、`selected`、`skipped`、`unsure`。解析不了的部分保持 `unsure`，不会默认成正确。写库前先回显一次解析结果。
+
+## skill_drift_check.py
+
+检查 `skills/` 里的两份技能是否落后于它们所依据的 docs。比对的是 `skills/.skill-source.json` 里记录的提交与各权威文档的最新提交。
+
+```bash
+python tools/skill_drift_check.py            # 用本地 git
+python tools/skill_drift_check.py --remote   # 用 GitHub 上的 main，不需要仓库在本地
+python tools/skill_drift_check.py --update   # 改了 docs 并重新派生后，记录新提交
+```
+
+退出码：`0` 同源，`3` 有漂移（逐条列出哪个文档变了、最新提交说明），`1` 检查不了（网络或 git 不可用）。

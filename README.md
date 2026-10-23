@@ -40,7 +40,7 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
   "mcpServers": {
     "craft-process": {
       "type": "http",
-      "url": "http://<mcp-host>:8764/mcp"
+      "url": "http://<mcp-host>:<mcp-port>/mcp"
     }
   }
 }
@@ -49,6 +49,13 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 完整流程（含 multipart 直传和每步的判据）见 [docs/02](docs/02-quickstart.md)。
 
 **如果你是要直接调用它的 agent**，跳过上面那篇，直接看 [docs/05](docs/05-agent-playbook.md)：只有动作、判据和禁令。地址按该页第 0 节读取本机配置或环境变量。机读入口见 [llms.txt](llms.txt)。
+
+## 装成技能
+
+`skills/` 下有两份可直接安装的 `SKILL.md`：`craft-process-workbench`（正常跑流程）和 `craft-process-recovery`（出错时排查），两份一起装。Claude、WorkBuddy、Codex 都读同一种格式，复制到各自的技能目录即可；opencode 用 `AGENTS.md` 引用，或用 `harnesses/portable-SKILL.md` 单文件版。装法与验证见 [skills/README.md](skills/README.md)。
+
+**装技能不等于有服务。** 本仓库不含地址、模板库和图纸，使用时需要自备一个 craft-process 实例。
+
 
 ## 问题清单
 
@@ -109,9 +116,11 @@ docs/09-asking-humans.md   向人提问的格式与回答语法
 docs/10-harness-interaction.md 按 harness 能力分档的交互方式
 docs/11-portability.md     换一个 harness 怎么跑（CLI / 技能 / 单文件）
 mcp.example.json           客户端配置模板（地址用占位符）
+skills/                    两份可安装的 SKILL.md 与安装说明
 harnesses/portable-SKILL.md 单文件版手册，给没有技能系统的 harness
-tools/README.md            五个脚本的用途、参数与退出码
+tools/README.md            六个脚本的用途、参数与退出码
 tools/craft_flow.py        一条命令推进一步，跨 harness 的驱动脚本
+tools/skill_drift_check.py 检查 skills/ 是否落后于 docs/
 tools/ask.py               中立问题清单 → md / html / json / tui，并解析回复
 tools/craft_discover.py    验证候选地址并做服务名指纹比对
 tools/craft_upload.py      上传图纸：长超时、账本记账、按哈希去重
@@ -123,6 +132,8 @@ patches/                   十三份英文修复提案
 ## 规则的权威位置
 
 同一条规则在多页出现是刻意的，但只有一个权威位置：**闸门与原因在 [03](docs/03-workflow-and-gates.md)，动作与判据在 [05](docs/05-agent-playbook.md)，症状与处理在 [04](docs/04-troubleshooting.md)，命令与验收在 [02](docs/02-quickstart.md)**。其余页面复述时只写一句并链过去；改规则只改权威位置，复述处跟着对齐。
+
+`skills/` 下的两份技能由这些页面派生，规则冲突时以 docs 为准。`skills/.skill-source.json` 记录派生时各文档的最新提交，`python tools/skill_drift_check.py --remote` 可以检查是否落后；改了 docs 就重新派生并 `--update`，两个改动放进同一个提交。
 
 ## 许可
 

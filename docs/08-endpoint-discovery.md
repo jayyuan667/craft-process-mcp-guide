@@ -4,7 +4,7 @@
 
 MCP 壳和业务后端是两个服务。壳的地址写进客户端配置就够了，但上传图纸、导出工艺卡要直连后端，于是每个新接入的人都要回答同一个问题：后端在哪。
 
-试过的办法是扫端口。结果是找到 5199 之前先撞上三个无关服务——一个招采系统、一个前端应用、一个 Hello World。既慢，又容易把别人的服务当成目标。这样做还有一个更坏的后果：在有安全审计的网段里，端口扫描本身就会触发告警。
+试过的办法是扫端口。结果是找到 <backend-port> 之前先撞上三个无关服务——一个招采系统、一个前端应用、一个 Hello World。既慢，又容易把别人的服务当成目标。这样做还有一个更坏的后果：在有安全审计的网段里，端口扫描本身就会触发告警。
 
 **扫端口不是发现机制，是没有发现机制时的替代品。**
 
@@ -19,8 +19,8 @@ MCP 壳和业务后端是两个服务。壳的地址写进客户端配置就够�
 **4. 用脚本验证一个短名单。** 不是扫，是验证：
 
 ```bash
-python tools/craft_discover.py --mcp http://<mcp-host>:8764/mcp
-# 默认只试同主机的 5199，可以用 --ports 追加已知候选
+python tools/craft_discover.py --mcp http://<mcp-host>:<mcp-port>/mcp
+# 默认只试同主机的 <backend-port>，可以用 --ports 追加已知候选
 ```
 
 脚本做三件事：调 `craft_health` 拿到服务名（例如 `dica-2d-feature-extraction`），对候选地址请求 `/health`，只有返回的 `service` 与壳报告的一致才认可。端口开着但服务不对，会被明确列成 `skip` 而不是误认。
@@ -28,10 +28,10 @@ python tools/craft_discover.py --mcp http://<mcp-host>:8764/mcp
 输出示例：
 
 ```
-MCP shell : http://<mcp-host>:8764/mcp
+MCP shell : http://<mcp-host>:<mcp-port>/mcp
 service   : dica-2d-feature-extraction
   skip    : http://<mcp-host>:5000 -> HTTP 404
-backend   : http://<mcp-host>:5199  [verified via host + port 5199; /health service matches]
+backend   : http://<mcp-host>:<backend-port>  [verified via host + port <backend-port>; /health service matches]
 ```
 
 ## 验证标准

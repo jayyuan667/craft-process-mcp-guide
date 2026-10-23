@@ -7,7 +7,7 @@
 只要 harness 能执行 shell 命令，就能跑完整条链路——不需要 MCP 客户端，也不需要知道工具名。每条命令独立可重跑，`status` 永远说明卡在哪。
 
 ```bash
-export CRAFT_BACKEND_URL=http://<backend-host>:5199
+export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
 
 python tools/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
 python tools/craft_flow.py wait                 # 等到 extracted
@@ -16,7 +16,7 @@ python tools/craft_flow.py previews --download ./previews   # 复核单要用的
 python tools/craft_flow.py review   --answers review.json
 python tools/craft_flow.py presence --answers presence.json
 python tools/craft_flow.py match                # 看候选与参考图号
-python tools/craft_flow.py select T10
+python tools/craft_flow.py select <template-id>
 python tools/craft_flow.py slots    --values slots.json
 python tools/craft_flow.py finalize             # 出卡 + 四字段校验
 python tools/craft_flow.py edit     --operations ops.json   # 生成后改行
@@ -35,10 +35,10 @@ python tools/craft_flow.py export process-card.xlsx
 
 // presence.json
 {"features": {"KEYWAY": "yes", "SQUARE": "no"},
- "branch_conditions": {"material": "GH901", "billet_type": "大锻件", "route_prefix": "28F"}}
+ "branch_conditions": {"material": "<material>", "billet_type": "<billet-type>", "route_prefix": "<route-prefix>"}}
 
 // slots.json
-{"values": {"T10-30-0": "φ77，0，-0.025", "T10-60-0": "60"}}
+{"values": {"<template-id>-30-0": "φ77，0，-0.025", "<template-id>-60-0": "60"}}
 ```
 
 `review` 会把整张特征表回传（就地修改后再发），所以不会踩到「最小载荷冲掉特征表」那个坑；`select` 遇到缺关键特征的模板会拒绝，除非加 `--force`（表示记成人工选择）。
@@ -47,7 +47,7 @@ python tools/craft_flow.py export process-card.xlsx
 
 ### 实测
 
-2026-10-23 在本部署上跑通一条完整链路：上传 → 识别 90s → 特征 3 项 → presence → 11 个候选 → 选 T10 → 5 个槽位 → 出卡 20 道工序 → 导出 4252 字节 XLSX，与同一张图此前人工逐项核对过的产卡**逐行一致（21 行 0 差异）**。
+2026-10-23 在本部署上跑通一条完整链路：上传 → 识别 90s → 特征 3 项 → presence → 11 个候选 → 选 <template-id> → 5 个槽位 → 出卡 20 道工序 → 导出 4252 字节 XLSX，与同一张图此前人工逐项核对过的产卡**逐行一致（21 行 0 差异）**。
 
 ## 二、接入 MCP（先判断要不要接）
 
@@ -62,26 +62,26 @@ python tools/craft_flow.py export process-card.xlsx
 Claude 桌面端 / Claude Code（项目 `.mcp.json` 或客户端设置）：
 
 ```json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 ```
 
 Codex `~/.codex/config.toml`：
 
 ```toml
 [mcp_servers.craft-process]
-url = "http://<mcp-host>:8764/mcp"
+url = "http://<mcp-host>:<mcp-port>/mcp"
 ```
 
 WorkBuddy `~/.workbuddy/mcp.json`（或 `~/.workbuddy/.mcp.json`）：
 
 ```json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 ```
 
 opencode `opencode.json`：
 
 ```json
-{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
 ```
 
 Codex 与 opencode 的键名各版本有差异，写之前对一眼它们的文档；Claude 与 WorkBuddy 用同一个 `mcpServers` 形状。
