@@ -1,0 +1,79 @@
+# 11 · 换一个 harness 怎么跑
+
+这套流程不绑定某个客户端。三种做法，按可靠性排序。
+
+## 一、优先用 CLI：`tools/craft_flow.py`
+
+只要 harness 能执行 shell 命令，就能跑完整条链路——不需要 MCP 客户端，也不需要知道工具名。每条命令独立可重跑，`status` 永远说明卡在哪。
+
+```bash
+export CRAFT_BACKEND_URL=http://<backend-host>:5199
+
+python tools/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
+python tools/craft_flow.py wait                 # 等到 extracted
+python tools/craft_flow.py dump                 # 工作台落盘 JSON
+python tools/craft_flow.py review   --answers review.json
+python tools/craft_flow.py presence --answers presence.json
+python tools/craft_flow.py match                # 看候选与参考图号
+python tools/craft_flow.py select T10
+python tools/craft_flow.py slots    --values slots.json
+python tools/craft_flow.py finalize             # 出卡 + 四字段校验
+python tools/craft_flow.py export process-card.xlsx
+```
+
+`status` 是唯一的入口探针：阶段、`blocking_action`、计数、下一步。
+
+### answers 文件由人产出
+
+工具不发明数值。三个 `--answers` / `--values` 文件就是人拍板的结果，工具只负责把它们套到服务端返回的完整对象上：
+
+```json
+// review.json
+{"overrides": {"overall_length:1": {"value": "1786", "status": "confirmed"}}}
+
+// presence.json
+{"features": {"KEYWAY": "yes", "SQUARE": "no"},
+ "branch_conditions": {"material": "GH901", "billet_type": "大锻件", "route_prefix": "28F"}}
+
+// slots.json
+{"values": {"T10-30-0": "φ77，0，-0.025", "T10-60-0": "60"}}
+```
+
+`review` 会把整张特征表回传（就地修改后再发），所以不会踩到「最小载荷冲掉特征表」那个坑；`select` 遇到缺关键特征的模板会拒绝，除非加 `--force`（表示记成人工选择）。
+
+退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过。
+
+### 实测
+
+2026-10-23 在本部署上跑通一条完整链路：上传 → 识别 90s → 特征 3 项 → presence → 11 个候选 → 选 T10 → 5 个槽位 → 出卡 20 道工序 → 导出 4252 字节 XLSX，与同一张图此前人工逐项核对过的产卡**逐行一致（21 行 0 差异）**。
+
+## 二、有技能系统时：装 SKILL.md
+
+`name` + `description` 是通用的 Agent Skills 标准，以下三处都能直接读：
+
+| harness | 技能位置 | MCP 配置 |
+| --- | --- | --- |
+| Claude 桌面端 / Claude Code | 账号技能（`/` 菜单可查） | `mcp.example.json` 的 `mcpServers` |
+| Codex | `~/.codex/skills/<name>/SKILL.md` | `~/.codex/config.toml` 的 mcp 表 |
+| WorkBuddy | `~/.workbuddy/skills/<name>/SKILL.md`（也认 `~/.agents/skills/`） | `~/.workbuddy/mcp.json` 的 `mcpServers` |
+| opencode | `AGENTS.md` + 技能目录 | `opencode.json` 的 `mcp` 键（remote 端点） |
+
+Codex 与 opencode 的字段名各版本有差异，装之前对一眼它们的文档；WorkBuddy 与 Claude 用的就是上面这套，不需要改文件。
+
+技能负责「什么时候做什么、判据是什么」，CLI 负责「怎么做」。两者一起用最省事：技能里写 `python tools/craft_flow.py status`，模型不需要记 REST 路径。
+
+## 三、什么都没有：一份单文件
+
+没有技能系统、也不能装 MCP 的 harness，把 [harnesses/portable-SKILL.md](../harnesses/portable-SKILL.md) 整个塞进系统提示或项目规则（`AGENTS.md` / `CLAUDE.md` 都行）。那份是两份技能合并、去掉跨文件引用的版本，代价是比拆分版长一倍。
+
+## 无人值守
+
+批处理里没有人拍板时，不要走完整链路。跑 `upload` → `wait` → `dump`，然后停下，把待确认项落成问题清单等人处理；确认后再从 `review` 续。
+
+理由：三处闸门是为「人负责」设计的，自动确认等于把责任转嫁给一个不会说话的脚本。
+
+## 不要做的事
+
+- 不要把后端地址写进公开仓库的文档
+- 不要为某个 harness 改流程逻辑，改的都是包装层
+- 不要让 CLI 在缺 answers 时猜一个默认值

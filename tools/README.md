@@ -1,6 +1,6 @@
 # 工具参考
 
-四个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步。
+五个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步，以及「换一个 harness 怎么跑」这件事。
 
 ```bash
 python3 --version        # 3.8+
@@ -8,6 +8,20 @@ pip install Pillow       # 只有 review_sheet.py 需要
 ```
 
 共同约定：地址通过参数传，参数缺省时读环境变量 `CRAFT_MCP_URL` / `CRAFT_BACKEND_URL`；所有输出都是给人或给 agent 直接读的纯文本，`--json` 只输出后端原始响应。
+
+## craft_flow.py
+
+一条命令推进一步，状态存在 `~/.config/craft-process/state-<job>.json`。给任何能跑 shell 的 harness 用：不需要 MCP 客户端，也不需要记 REST 路径。步骤与 `answers` 文件格式见 [docs/11](../docs/11-portability.md)。
+
+```bash
+python tools/craft_flow.py upload drawing.png
+python tools/craft_flow.py status
+python tools/craft_flow.py review --answers review.json
+python tools/craft_flow.py finalize
+python tools/craft_flow.py export process-card.xlsx
+```
+
+退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过（不导出）。
 
 ## craft_upload.py
 
