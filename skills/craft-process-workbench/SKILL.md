@@ -23,9 +23,10 @@ description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上�
 
 **没有**的话，两条路选一条，不要停在"没有工具所以做不了"：
 
-**A. 用 CLI，完全不配 MCP。** 技能目录自带客户端，只下载这份技能也够：
+**A. 用 CLI，完全不配 MCP。** 技能目录自带客户端，只下载这份技能也够（路径按安装位置换）：
 
 ```bash
+cd ~/.claude/skills/craft-process-workbench    # WorkBuddy: ~/.workbuddy/skills/...
 python scripts/craft_flow.py --backend http://<backend-host>:<port> health
 ```
 
@@ -62,7 +63,7 @@ Codex 与 opencode 的键名各版本有差异，写前对一眼它们的文档�
 
 ## 有 CLI 时优先用 CLI
 
-技能自带 `scripts/craft_flow.py`（仓库检出时用 `tools/craft_flow.py`，同一实现）——一条命令推进一步，任何能跑 shell 的 harness 都能用，不依赖 MCP 客户端。
+技能自带 `scripts/craft_flow.py`——一条命令推进一步，任何能跑 shell 的 harness 都能用，不依赖 MCP 客户端。下面命令在技能目录下运行（Claude：`~/.claude/skills/craft-process-workbench`，WorkBuddy：`~/.workbuddy/skills/craft-process-workbench`）；仓库检出时用 `tools/craft_flow.py`，命令相同。
 
 **先给地址**，按顺序取：`--backend`（写在子命令之前）→ 环境变量 `CRAFT_BACKEND_URL` → `~/.config/craft-process/endpoints.json` 的 `backend`。都没有时 `health` 会直接说没有地址，不会瞎连。
 
