@@ -1,6 +1,6 @@
 ---
 name: "craft-process-recovery"
-description: "craft-process 工艺工作台出错时的排查与恢复：MCP 配好但工具不出现、initialize 通但工具为空、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、上传丢了 job_id、工作台串号、找不到后端地址。工具调用失败或状态卡住时使用。"
+description: "craft-process 工艺工作台出错时的排查与恢复：工具不出现、initialize 通但工具为空、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址。工具调用失败或状态卡住时使用。"
 ---
 
 # craft-process 故障恢复

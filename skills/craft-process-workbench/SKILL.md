@@ -1,6 +1,6 @@
 ---
 name: "craft-process-workbench"
-description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、模板选择、槽位确认、出卡、改卡与导出。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
+description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、模板选择、槽位确认、出卡、改卡与导出。技能自带 CLI，下载后给一个后端地址即可跑，不必先配 MCP。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
 ---
 
 # craft-process 工艺工作台
