@@ -13,6 +13,8 @@
 
 判断规则：**决策类、选项互斥、不超过 4 项 → 用原生控件；数值类、需要看图、超过 5 项 → 用页面。**
 
+这两个数字不是同一个上限，不要混：**4 是单次调用能塞进原生控件的题数**（`AskUserQuestion` 的上限），**5 是让人用文字对齐编号还不至于出错的项目数**（[09](09-asking-humans.md) 的四条硬规则）。一批 5 项可以拆成两次控件调用，也可以直接给页面；但不该把 5 项硬塞进一次控件调用。
+
 ## 中立数据：questions.json
 
 ```json
@@ -23,7 +25,7 @@
     { "id": "overall_length", "label": "总长", "value": "1786",
       "evidence": "图上外侧 1786±0.3，1776 为内侧", "type": "text" },
     { "id": "small_end_outer_diameter", "label": "小端外径", "value": "Φ72",
-      "evidence": "上偏差 +0.13，下偏差不清", "type": "text", "uncertain": true },
+      "evidence": "图上 Ø72±0.13", "type": "text" },
     { "id": "inner_key", "label": "右端头部内键槽", "value": "有",
       "evidence": "技术要求提到槽内表面氮化", "type": "presence" },
     { "id": "template", "label": "采用模板", "value": "T01",
@@ -55,8 +57,8 @@ ask.py tui --in q.json --out answers.json
 
 ```
 [3/7] 小端外径    当前：Φ72
-      依据：上偏差 +0.13，下偏差不清
-      > Φ72 +0.13/-0.02
+      依据：图上 Ø72±0.13
+      > Φ72±0.05
 ```
 
 回车采用当前值、直接输入即更正、`?` 看不清、`s` 跳过；`presence` 只问「有 / 无 / ?」，`choice` 给编号选项。全部走完后打印一遍结果，再问一次「写入？」，取消就不落文件。
@@ -68,14 +70,14 @@ ask.py tui --in q.json --out answers.json
 ## 解析回复
 
 ```bash
-ask.py parse --in q.json --reply "3=Φ72 +0.13/-0.02; 7无; 其余采用"
+ask.py parse --in q.json --reply "3=Φ72±0.05; 7无; 其余采用"
 ```
 
 输出统一结构：
 
 ```json
 {"answers":[
-  {"id":"small_end_outer_diameter","status":"corrected","value":"Φ72 +0.13/-0.02"},
+  {"id":"small_end_outer_diameter","status":"corrected","value":"Φ72±0.05"},
   {"id":"inner_key","status":"absent","value":"无"},
   {"id":"overall_length","status":"confirmed","value":"1786"}
 ]}
@@ -89,7 +91,7 @@ ask.py parse --in q.json --reply "3=Φ72 +0.13/-0.02; 7无; 其余采用"
 
 写库之前把解析结果回显一次：
 
-> 我理解为：3 改为 Φ72 +0.13/-0.02，7 无，其余采用。对吗？
+> 我理解为：3 改为 Φ72±0.05，7 无，其余采用。对吗？
 
 这一步能挡掉绝大多数「用户以为改了、实际没改」的返工。
 

@@ -78,7 +78,7 @@ python tools/ask.py render --in q.json --format md   > questions.md
 python tools/ask.py render --in q.json --format html > questions.html
 python tools/ask.py render --in q.json --format json > prompt.json
 python tools/ask.py tui    --in q.json --out answers.json
-python tools/ask.py parse  --in q.json --reply "3=Φ72 +0.13/-0.02; 7无; 其余采用"
+python tools/ask.py parse  --in q.json --reply "3=Φ72±0.05; 7无; 其余采用"
 ```
 
 | 子命令 | 参数 | 说明 |

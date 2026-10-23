@@ -43,16 +43,20 @@ curl -sS -X POST "http://<mcp-host>:8764/mcp" \
 ```bash
 export CRAFT_BACKEND_URL=http://<backend-host>:5199
 python tools/craft_upload.py --file ./drawing.png
-# job_id   JOB-20261022-...
-# 耗时     1.8s    HTTP 200
+# job_id   40d8e960017045b583a78b91d1a07b6f
+# 耗时     1.8s    HTTP 202
 ```
 
 这个脚本存在的理由是：上传是唯一一个「客户端超时就把整次运行毁掉」的步骤。`GET /api/jobs` 不是列表接口，返回 `405`（`Allow: OPTIONS, POST`），`job_id` 没拿到就无法通过 API 找回，只能请人去看工作台。所以它在发字节**之前**先把 attempt 写进 `~/.config/craft-process/jobs.jsonl`：
 
 ```json
 {"event":"attempt","attempt_id":"…","sha256":"…","file":"…","backend":"…"}
-{"event":"result","attempt_id":"…","job_id":"JOB-…"}
+{"event":"result","attempt_id":"…","job_id":"40d8e960017045b583a78b91d1a07b6f"}
+{"event":"timeout","attempt_id":"…","seconds":180}
+{"event":"failed","attempt_id":"…","http":413,"detail":"…"}
 ```
+
+`job_id` 是后端原样返回的 32 位十六进制串，脚本不加工、不加前缀，`--list` 里的写法与 API 一致。台账四种事件：`attempt`（发字节前）、`result`、`timeout`（状态未知）、`failed`（被拒或连不上）。
 
 超时会留下一条没有 result 的 attempt——既不是成功也不是失败，脚本如实标记为未知，不猜：
 
@@ -91,7 +95,7 @@ curl -sS "http://<backend-host>:5199/api/jobs/<job_id>/workbench?detail=full"
 
 `blocking_action` 是服务端拒绝跳过的下一步，常见值有 `confirm_features`、`select_template` 和槽位复核。
 
-`detail=full` 返回更多内容，包括识别溯源。不同构建行为不同；**读之前先核对返回体里的 `job_id`**，如果像另一个任务的数据，停下，见 [04 第 9 条](04-troubleshooting.md)。
+`detail=full` **不是所有构建都认**：实测一个部署上 `detail=full`、`view=full`、不带参数三种请求返回完全相同的载荷（19 个键、字节数一致），即参数被忽略、恒返回全量。带上它不会错，但别据此判断「拿到了全量」。**读之前先核对返回体里的 `job_id`**，如果像另一个任务的数据，停下，见 [04 第 9 条](04-troubleshooting.md)。
 
 ## 5. 特征复核
 

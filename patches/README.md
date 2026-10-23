@@ -20,4 +20,4 @@ The **current status** of each patch (implemented, partially mitigated, or still
 | 12 | [Structured dimension fields](12-structured-dimension-fields.md) | medium | nominal and deviations as numbers; string is display only |
 | 13 | [Saved vs confirmed vs gate-passed](13-confirmation-states.md) | low | three states, never one word called "success" |
 
-Patches 1, 3 and 4 have partial workarounds documented in [docs/02](../docs/02-quickstart.md): point the shell at a routable address, upload with multipart, and export directly from the backend. Those workarounds keep a run alive; they do not fix the contract.
+Patches 1, 2, 3 and 4 have partial client-side workarounds documented in [docs/02](../docs/02-quickstart.md): point the shell at a routable address, send the full feature table back to `feature-review`, upload with multipart, and export directly from the backend. Those workarounds keep a run alive; they do not fix the contract.

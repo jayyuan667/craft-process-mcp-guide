@@ -19,15 +19,14 @@
     {
       "id": "small_end_outer_diameter",
       "label": "小端外径",
-      "value": "Φ72 +0.13/0",
-      "evidence": "上偏差 +0.13，下偏差在原图上不清",
-      "type": "text",
-      "uncertain": true
+      "value": "Φ72±0.13",
+      "evidence": "图上标注 Ø72±0.13",
+      "type": "text"
     },
     {
       "id": "end_thread",
       "label": "端部螺纹",
-      "value": "3\"-80UN-3A",
+      "value": "3\"-8UN-3A",
       "evidence": "主视图左端螺纹标注，OCR 曾读错位数",
       "type": "text"
     },

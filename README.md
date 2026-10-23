@@ -117,6 +117,10 @@ examples/                  questions.json 等可直接跑通的示例输入
 patches/                   十三份英文修复提案
 ```
 
+## 规则的权威位置
+
+同一条规则在多页出现是刻意的，但只有一个权威位置：**闸门与原因在 [03](docs/03-workflow-and-gates.md)，动作与判据在 [05](docs/05-agent-playbook.md)，症状与处理在 [04](docs/04-troubleshooting.md)，命令与验收在 [02](docs/02-quickstart.md)**。其余页面复述时只写一句并链过去；改规则只改权威位置，复述处跟着对齐。
+
 ## 许可
 
 Apache-2.0，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。本项目是非官方实践记录，与任何厂商、产品或服务无隶属关系。

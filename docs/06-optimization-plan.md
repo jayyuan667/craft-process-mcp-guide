@@ -11,7 +11,7 @@
 | 1 | [后端地址可配置](../patches/01-api-base-url.md) | 部署侧已修，上游未合入 | 壳指向容器可达地址后业务工具恢复 |
 | 2 | [复核合并语义](../patches/02-feature-review-payload.md) | 未实现，客户端绕过 | 最小载荷仍会冲掉整张特征表 |
 | 3 | [文件内容入参](../patches/03-file-content-input.md) | 未实现，客户端绕过 | 仍只收路径，需 multipart 直传后端 |
-| 4 | [超时与导出](../patches/04-timeout-and-export.md) | 部分：导出改直连；超时未改 | 选模板仍可能超 60s；导出仍落壳容器 |
+| 4 | [超时与导出](../patches/04-timeout-and-export.md) | 部分：客户端绕过了导出 | 选模板仍可能超 60s；导出改由客户端直连后端，落壳容器的问题仍在服务端 |
 | 5 | [预览工艺卡工具](../patches/05-draft-process-card-tools.md) | 未实现 | 页面有、MCP 无 |
 | 6 | [`next_action` 工具](../patches/06-next-action-tool.md) | 未实现 | 阻断点仍需客户端自己推导 |
 | 7 | [任务状态一致性](../patches/07-state-consistency.md) | 待确认 | 串号只观察到一次，未复现 |
@@ -35,7 +35,7 @@ MCP 有 17 个工具，覆盖了大部分 REST 端点，但没有覆盖状态机
 | 页面动作 | 后端端点 | MCP 工具 | 状态 |
 | --- | --- | --- | --- |
 | 上传图纸 | `POST /api/jobs` | `craft_create_job` | 只收路径 |
-| 特征有/无、分支条件 | `feature-presence` | `craft_feature_presence` | 有，但不常用 |
+| 特征有/无、分支条件 | `feature-presence` | `craft_feature_presence` | 有；结构特征（含四方）与分支条件走这条，它是 match 的前置 |
 | 特征值修正 | `feature-review` | `craft_feature_review` | 有，整表替换，危险 |
 | 模板候选 | `template-match` | `craft_template_match` | 有 |
 | 采用模板 | `template-selection` | `craft_select_template` | 有，可能超时 |
