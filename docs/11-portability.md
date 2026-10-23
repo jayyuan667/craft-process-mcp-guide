@@ -12,12 +12,14 @@ export CRAFT_BACKEND_URL=http://<backend-host>:5199
 python tools/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
 python tools/craft_flow.py wait                 # 等到 extracted
 python tools/craft_flow.py dump                 # 工作台落盘 JSON
+python tools/craft_flow.py previews --download ./previews   # 复核单要用的图
 python tools/craft_flow.py review   --answers review.json
 python tools/craft_flow.py presence --answers presence.json
 python tools/craft_flow.py match                # 看候选与参考图号
 python tools/craft_flow.py select T10
 python tools/craft_flow.py slots    --values slots.json
 python tools/craft_flow.py finalize             # 出卡 + 四字段校验
+python tools/craft_flow.py edit     --operations ops.json   # 生成后改行
 python tools/craft_flow.py export process-card.xlsx
 ```
 

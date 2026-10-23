@@ -21,12 +21,14 @@ export CRAFT_BACKEND_URL=http://<backend-host>:5199
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py wait
 python tools/craft_flow.py dump
+python tools/craft_flow.py previews --download ./previews
 python tools/craft_flow.py review   --answers review.json
 python tools/craft_flow.py presence --answers presence.json
 python tools/craft_flow.py match
 python tools/craft_flow.py select T10
 python tools/craft_flow.py slots    --values slots.json
 python tools/craft_flow.py finalize
+python tools/craft_flow.py edit     --operations ops.json
 python tools/craft_flow.py export process-card.xlsx
 ```
 
@@ -121,6 +123,16 @@ curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/{id}/process-card/exp
 ```
 
 按 `Content-Type` 与文件头判断格式，别信文档后缀。
+
+## 9.5 预览与改卡
+
+`GET /previews` 列图、`GET /previews/{rel}` 取图；复核单需要这张图才能做成可点选页面，没有就退回文字问答。
+
+生成后用 `POST /process-card-edit` **整体替换** `operations`（不要重新生成——重跑复核时规则会再算一次）。三条硬要求：
+
+1. `工时` 一律转字符串——数字 `0` 会被当成空值，0 工时工序的工时格变空白，其他行正常，很难发现。
+2. 改前存一份当前 `operations`，改后导出与改前逐行比对，不要只看 200。
+3. 回读条数要与提交一致。
 
 ## 10. 故障速查
 

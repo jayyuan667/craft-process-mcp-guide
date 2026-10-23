@@ -142,6 +142,22 @@ curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/<id>/process-card/exp
 
 按 `Content-Type` 判断格式，别信文档后缀（实测有返回 XLSX 而文档写 CSV）。
 
+### 预览图
+
+`craft_list_previews` / `GET /previews` 列出可用图，`craft_download_preview` 取字节。复核单 `tools/review_sheet.py` 需要这张图才能生成可点选页面；没有图只能退回文字问答。CLI：`craft_flow.py previews --download ./previews`。
+
+### 改卡
+
+生成后用 `craft_edit_process_card`（`POST /process-card-edit`）**整体替换** `operations`。只是措辞或派生值要改时用它，不要重新生成——重跑复核时规则会再算一次，同样被覆盖。
+
+三条硬要求：
+
+1. 提交前把 `工时` 转成**字符串**。数字 `0` 会被当成空值，回读后 0 工时工序（来料、热处理、涂油）的工时格变空白，其余行正常，很难发现。见 [04 第 13 条](04-troubleshooting.md)。
+2. 改之前先把当前 `operations` 存一份，改完导出、与改前逐行比对，**不要只看返回 200**。
+3. 回读条数要和提交条数一致，不一致说明服务端丢弃了某些行。
+
+CLI：`craft_flow.py edit --operations ops.json`，归一化已经内置。
+
 ## 10. 写操作通用规则
 
 - 每次写带当前 `revision`，409 就重读工作台再改，**不要盲目重试**。

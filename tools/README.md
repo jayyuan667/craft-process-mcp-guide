@@ -16,10 +16,14 @@ pip install Pillow       # 只有 review_sheet.py 需要
 ```bash
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py status
+python tools/craft_flow.py previews --download ./previews
 python tools/craft_flow.py review --answers review.json
 python tools/craft_flow.py finalize
+python tools/craft_flow.py edit --operations ops.json
 python tools/craft_flow.py export process-card.xlsx
 ```
+
+`edit` 会自动把 `工时` 归一化成字符串——传数字 `0` 会被服务端当空值（见 [docs/04 第 13 条](../docs/04-troubleshooting.md)）。
 
 退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过（不导出）。
 

@@ -10,12 +10,14 @@ always says where the job is stuck.
     craft_flow.py upload drawing.png
     craft_flow.py wait
     craft_flow.py dump
+    craft_flow.py previews --download ./previews
     craft_flow.py review   --answers review.json
     craft_flow.py presence --answers presence.json
     craft_flow.py match
     craft_flow.py select T10
     craft_flow.py slots    --values slots.json
     craft_flow.py finalize
+    craft_flow.py edit     --operations ops.json
     craft_flow.py export process-card.xlsx
 
 Human gates stay human: this tool never invents a value. `review` / `presence`
@@ -457,6 +459,78 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_previews(args) -> int:
+    state = load_state(args.job)
+    job, base = state["job_id"], state["backend"]
+    status, payload, _ = http("GET", f"{base}/api/jobs/{job}/previews", timeout=60)
+    if status != 200:
+        return die(payload)
+    previews = payload.get("previews") or []
+    if not previews:
+        return print_err("没有预览图。", 3)
+    print(f"预览 {len(previews)} 项")
+    for item in previews:
+        print(f"  {item.get('name')}  {item.get('url')}")
+    if args.download:
+        out_dir = Path(args.download).expanduser()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for item in previews:
+            status, raw, _ = http("GET", base + item["url"], timeout=120)
+            if status != 200:
+                print(f"  跳过 {item.get('name')}：HTTP {status}")
+                continue
+            target = out_dir / Path(item["name"]).name
+            target.write_bytes(raw)
+            print(f"  落盘 {target}  {len(raw)} bytes")
+    return 0
+
+
+def cmd_result(args) -> int:
+    state = load_state(args.job)
+    job, base = state["job_id"], state["backend"]
+    status, payload, _ = http("GET", f"{base}/api/jobs/{job}/result", timeout=60)
+    if status != 200:
+        return die(payload)
+    out = Path(args.out).expanduser() if args.out else STATE_DIR / f"result-{job}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    if isinstance(payload, dict):
+        print(f"键       {', '.join(list(payload)[:12])}")
+    print(f"落盘     {out}")
+    return 0
+
+
+def cmd_edit(args) -> int:
+    state = load_state(args.job)
+    job = state["job_id"]
+    data = json.loads(Path(args.operations).expanduser().read_text(encoding="utf-8"))
+    operations = data.get("operations") if isinstance(data, dict) else data
+    if not isinstance(operations, list) or not operations:
+        return print_err("operations 必须是非空数组。", 1)
+    missing = [i for i, op in enumerate(operations) if not str(op.get("工序", "")).strip()]
+    if missing:
+        return print_err(f"第 {missing} 条缺「工序」字段；改卡是整表替换，字段不全不要提交。", 1)
+
+    # 工时 传数字 0 会被服务端当成空值，回读后这一格变空白；一律转字符串。
+    for op in operations:
+        if "工时" in op:
+            op["工时"] = "" if op["工时"] is None else str(op["工时"])
+        for key in [k for k, v in op.items() if v is None]:
+            op[key] = ""
+
+    wb = refresh(job)
+    card = wb.get("process_card") or {}
+    before = len(card.get("operations") or [])
+    result = post(job, "process-card-edit",
+                  {"operations": operations, "revision": wb.get("revision")}, timeout=180)
+    after = len((result.get("process_card") or {}).get("operations") or [])
+    print(f"已替换   工序 {before} → {after} 条，revision {result.get('revision')}")
+    if after != len(operations):
+        return print_err(f"回读条数是 {after}，与提交的 {len(operations)} 不一致。", 4)
+    print("下一步  craft_flow.py export <file.xlsx>")
+    return 0
+
+
 # ---------------------------------------------------------------- cli
 
 def main() -> int:
@@ -510,6 +584,18 @@ def main() -> int:
     e = sub.add_parser("export", help="导出工艺卡")
     e.add_argument("out")
     e.set_defaults(func=cmd_export)
+
+    pv = sub.add_parser("previews", help="列出预览图，可下载（复核单要用）")
+    pv.add_argument("--download", help="下载到该目录")
+    pv.set_defaults(func=cmd_previews)
+
+    rs = sub.add_parser("result", help="识别原始结果落盘")
+    rs.add_argument("--out")
+    rs.set_defaults(func=cmd_result)
+
+    ed = sub.add_parser("edit", help="整体替换工序（生成后人工改行）")
+    ed.add_argument("--operations", required=True)
+    ed.set_defaults(func=cmd_edit)
 
     args = ap.parse_args()
     if args.backend:
