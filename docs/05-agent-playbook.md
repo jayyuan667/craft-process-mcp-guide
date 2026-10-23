@@ -8,6 +8,8 @@
 
 ## 0. 拿地址
 
+**先看工具在不在。** `tools/list` 里有 17 个 `craft_*` 就直接往下走；没有的话先接 MCP——配置片段、验证三件事、以及「配完必须新开会话」都在 [11](11-portability.md)。也可以完全绕开 MCP，用同页第一节的 CLI。
+
 `<mcp-host>` 与 `<backend-host>` 不在仓库里。按顺序试，别跳步、别扫网段：
 
 1. 读 `LOCAL.endpoints.md`（本机私有，已被 `.gitignore` 排除）或 `~/.config/craft-process/endpoints.json`。

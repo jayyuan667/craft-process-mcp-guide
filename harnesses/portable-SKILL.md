@@ -10,9 +10,38 @@
 
 出错、卡住、状态不对时：停下并列出证据，是正确结果。
 
-## 0. 地址
+## 0. 先确认接没接上
 
-按顺序：`CRAFT_BACKEND_URL` 环境变量 → `~/.config/craft-process/endpoints.json` → 问部署负责人。都没有就停。
+`tools/list` 里有 17 个 `craft_*` → 已接好，往下走。
+
+没有的话，两条路选一条：
+
+**A. 用 CLI，不配 MCP。** 仓库在本地就行，下面所有命令都走 REST。
+
+**B. 配 MCP。** 写进当前 harness 的配置文件，四家形状：
+
+```json
+// Claude 桌面端 / Claude Code（.mcp.json 或客户端设置）
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+
+// WorkBuddy ~/.workbuddy/mcp.json
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+
+// opencode opencode.json
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
+```
+
+```toml
+# Codex ~/.codex/config.toml
+[mcp_servers.craft-process]
+url = "http://<mcp-host>:8764/mcp"
+```
+
+配完验三件事：**新开会话**（工具清单不热加载，这是最常见的失败）、`initialize` 返回 200 且带 `mcp-session-id`、`tools/list` 是 17 个。只过第二件说明壳活着但工具没挂上。
+
+## 0.5 地址
+
+按顺序：`CRAFT_BACKEND_URL` 环境变量 → `~/.config/craft-process/endpoints.json` → 问部署负责人。都没有就停，别猜、别扫网段。
 
 ## 1. 一次完整链路
 

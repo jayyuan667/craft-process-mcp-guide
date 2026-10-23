@@ -49,18 +49,59 @@ python tools/craft_flow.py export process-card.xlsx
 
 2026-10-23 在本部署上跑通一条完整链路：上传 → 识别 90s → 特征 3 项 → presence → 11 个候选 → 选 T10 → 5 个槽位 → 出卡 20 道工序 → 导出 4252 字节 XLSX，与同一张图此前人工逐项核对过的产卡**逐行一致（21 行 0 差异）**。
 
-## 二、有技能系统时：装 SKILL.md
+## 二、接入 MCP（先判断要不要接）
 
-`name` + `description` 是通用的 Agent Skills 标准，以下三处都能直接读：
+### 先自检
 
-| harness | 技能位置 | MCP 配置 |
-| --- | --- | --- |
-| Claude 桌面端 / Claude Code | 账号技能（`/` 菜单可查） | `mcp.example.json` 的 `mcpServers` |
-| Codex | `~/.codex/skills/<name>/SKILL.md` | `~/.codex/config.toml` 的 mcp 表 |
-| WorkBuddy | `~/.workbuddy/skills/<name>/SKILL.md`（也认 `~/.agents/skills/`） | `~/.workbuddy/mcp.json` 的 `mcpServers` |
-| opencode | `AGENTS.md` + 技能目录 | `opencode.json` 的 `mcp` 键（remote 端点） |
+调 `tools/list`：有 17 个 `craft_*` 就说明已接好，直接进流程。**没有**的话有两条路——走 CLI（第一节，不需要配 MCP），或者配 MCP（下面）。
 
-Codex 与 opencode 的字段名各版本有差异，装之前对一眼它们的文档；WorkBuddy 与 Claude 用的就是上面这套，不需要改文件。
+配置需要 `<mcp-host>`。仓库里没有地址，按 [08](08-endpoint-discovery.md) 找；找不到就停下来问部署方，别猜。
+
+### 四家的配置片段
+
+Claude 桌面端 / Claude Code（项目 `.mcp.json` 或客户端设置）：
+
+```json
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+```
+
+Codex `~/.codex/config.toml`：
+
+```toml
+[mcp_servers.craft-process]
+url = "http://<mcp-host>:8764/mcp"
+```
+
+WorkBuddy `~/.workbuddy/mcp.json`（或 `~/.workbuddy/.mcp.json`）：
+
+```json
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
+```
+
+opencode `opencode.json`：
+
+```json
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
+```
+
+Codex 与 opencode 的键名各版本有差异，写之前对一眼它们的文档；Claude 与 WorkBuddy 用同一个 `mcpServers` 形状。
+
+### 配完要验三件事
+
+1. **新开会话。** 工具清单不热加载，当前会话看不到刚加的工具——这是最常见的一次性失败。
+2. `initialize` 返回 `200` + `mcp-session-id` 头 + body 有 `serverInfo`。
+3. `tools/list` 里有 17 个 `craft_*`。
+
+三件都过了再往下走。只过第 2 件说明壳活着但工具没挂上。
+
+## 技能装在哪
+
+| harness | 技能位置 |
+| --- | --- |
+| Claude 桌面端 / Claude Code | 账号技能（`/` 菜单可查） |
+| Codex | `~/.codex/skills/<name>/SKILL.md` |
+| WorkBuddy | `~/.workbuddy/skills/<name>/SKILL.md`（也认 `~/.agents/skills/`） |
+| opencode | `AGENTS.md` + 技能目录 |
 
 技能负责「什么时候做什么、判据是什么」，CLI 负责「怎么做」。两者一起用最省事：技能里写 `python tools/craft_flow.py status`，模型不需要记 REST 路径。
 
