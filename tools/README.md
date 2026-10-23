@@ -13,7 +13,10 @@ pip install Pillow       # 只有 review_sheet.py 需要
 
 一条命令推进一步，状态存在 `~/.config/craft-process/state-<job>.json`。给任何能跑 shell 的 harness 用：不需要 MCP 客户端，也不需要记 REST 路径。步骤与 `answers` 文件格式见 [docs/11](../docs/11-portability.md)。
 
+**实现已移到 `skills/craft-process-workbench/scripts/craft_flow.py`**，这样只下载技能目录的人也能拿到客户端；`tools/craft_flow.py` 保留为兼容入口，命令与退出码完全一致。装上技能后路径写成 `scripts/craft_flow.py`。
+
 ```bash
+python tools/craft_flow.py health    # 验地址：200 且 service 名对得上
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py status
 python tools/craft_flow.py previews --download ./previews
@@ -30,6 +33,8 @@ python tools/craft_flow.py export process-card.xlsx
 ## craft_upload.py
 
 把图纸以 multipart 上传到后端，**在发字节之前**把这次尝试写进账本，并按 sha256 去重。`GET /api/jobs` 是 `405`，没有列表接口，`job_id` 丢了只能靠账本对账，所以这一步必须记账。
+
+实现同样在 `skills/craft-process-workbench/scripts/craft_upload.py`，`tools/craft_upload.py` 是兼容入口。
 
 ```bash
 python tools/craft_upload.py --file drawing.png --backend http://<backend-host>:<backend-port>

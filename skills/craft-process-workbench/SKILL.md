@@ -23,11 +23,13 @@ description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上�
 
 **没有**的话，两条路选一条，不要停在"没有工具所以做不了"：
 
-**A. 用 CLI，完全不配 MCP。** 仓库在本地即可：
+**A. 用 CLI，完全不配 MCP。** 技能目录自带客户端，只下载这份技能也够：
 
 ```bash
-python tools/craft_flow.py status
+python scripts/craft_flow.py --backend http://<backend-host>:<port> health
 ```
+
+仓库检出时同一实现在 `tools/craft_flow.py`（兼容入口）。
 
 **B. 配 MCP。** 写进当前 harness 的配置文件：
 
@@ -60,21 +62,24 @@ Codex 与 opencode 的键名各版本有差异，写前对一眼它们的文档�
 
 ## 有 CLI 时优先用 CLI
 
-仓库在本地时，优先走 `tools/craft_flow.py`——一条命令推进一步，任何能跑 shell 的 harness 都能用，不依赖 MCP 客户端：
+技能自带 `scripts/craft_flow.py`（仓库检出时用 `tools/craft_flow.py`，同一实现）——一条命令推进一步，任何能跑 shell 的 harness 都能用，不依赖 MCP 客户端。
+
+**先给地址**，按顺序取：`--backend`（写在子命令之前）→ 环境变量 `CRAFT_BACKEND_URL` → `~/.config/craft-process/endpoints.json` 的 `backend`。都没有时 `health` 会直接说没有地址，不会瞎连。
 
 ```bash
-python tools/craft_flow.py status     # 阶段 / 阻断点 / 下一步
-python tools/craft_flow.py upload drawing.png
-python tools/craft_flow.py wait
-python tools/craft_flow.py previews --download ./previews
-python tools/craft_flow.py review --answers review.json
-python tools/craft_flow.py presence --answers presence.json
-python tools/craft_flow.py match
-python tools/craft_flow.py select <template-id>
-python tools/craft_flow.py slots --values slots.json
-python tools/craft_flow.py finalize
-python tools/craft_flow.py edit --operations ops.json
-python tools/craft_flow.py export process-card.xlsx
+python scripts/craft_flow.py health      # 验地址：200 且 service 名对得上
+python scripts/craft_flow.py status      # 阶段 / 阻断点 / 下一步
+python scripts/craft_flow.py upload drawing.png
+python scripts/craft_flow.py wait
+python scripts/craft_flow.py previews --download ./previews
+python scripts/craft_flow.py review --answers review.json
+python scripts/craft_flow.py presence --answers presence.json
+python scripts/craft_flow.py match
+python scripts/craft_flow.py select <template-id>
+python scripts/craft_flow.py slots --values slots.json
+python scripts/craft_flow.py finalize
+python scripts/craft_flow.py edit --operations ops.json
+python scripts/craft_flow.py export process-card.xlsx
 ```
 
 `answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
@@ -193,7 +198,7 @@ curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/{id}/process-card/exp
 
 ### 预览图
 
-`craft_list_previews` / `GET /previews` 列图，`craft_download_preview` 取字节。复核单 `tools/review_sheet.py` 需要这张图才能生成可点选页面，没有图只能退回文字问答。CLI：`craft_flow.py previews --download ./previews`。
+`craft_list_previews` / `GET /previews` 列图，`craft_download_preview` 取字节。复核单工具（仓库 `tools/review_sheet.py`）需要这张图才能生成可点选页面，没有图只能退回文字问答。CLI：`craft_flow.py previews --download ./previews`。
 
 ### 改卡
 

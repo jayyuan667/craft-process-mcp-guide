@@ -2,25 +2,28 @@
 
 这套流程不绑定某个客户端。三种做法，按可靠性排序。
 
-## 一、优先用 CLI：`tools/craft_flow.py`
+## 一、优先用 CLI：技能自带的 `scripts/craft_flow.py`
 
-只要 harness 能执行 shell 命令，就能跑完整条链路——不需要 MCP 客户端，也不需要知道工具名。每条命令独立可重跑，`status` 永远说明卡在哪。
+只要 harness 能执行 shell 命令，就能跑完整条链路——不需要 MCP 客户端，也不需要知道工具名。脚本就在技能目录里（`skills/craft-process-workbench/scripts/`），所以**只下载技能、不配 MCP 也能跑**；仓库检出时走 `tools/craft_flow.py`，那是同一实现的兼容入口。每条命令独立可重跑，`status` 永远说明卡在哪。
+
+地址按 `--backend`（写在子命令前）→ `CRAFT_BACKEND_URL` → `~/.config/craft-process/endpoints.json` 的顺序取。先验通再干活：
 
 ```bash
 export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
+python scripts/craft_flow.py health              # 200 且 service 对得上
 
-python tools/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
-python tools/craft_flow.py wait                 # 等到 extracted
-python tools/craft_flow.py dump                 # 工作台落盘 JSON
-python tools/craft_flow.py previews --download ./previews   # 复核单要用的图
-python tools/craft_flow.py review   --answers review.json
-python tools/craft_flow.py presence --answers presence.json
-python tools/craft_flow.py match                # 看候选与参考图号
-python tools/craft_flow.py select <template-id>
-python tools/craft_flow.py slots    --values slots.json
-python tools/craft_flow.py finalize             # 出卡 + 四字段校验
-python tools/craft_flow.py edit     --operations ops.json   # 生成后改行
-python tools/craft_flow.py export process-card.xlsx
+python scripts/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
+python scripts/craft_flow.py wait                 # 等到 extracted
+python scripts/craft_flow.py dump                 # 工作台落盘 JSON
+python scripts/craft_flow.py previews --download ./previews   # 复核单要用的图
+python scripts/craft_flow.py review   --answers review.json
+python scripts/craft_flow.py presence --answers presence.json
+python scripts/craft_flow.py match                # 看候选与参考图号
+python scripts/craft_flow.py select <template-id>
+python scripts/craft_flow.py slots    --values slots.json
+python scripts/craft_flow.py finalize             # 出卡 + 四字段校验
+python scripts/craft_flow.py edit     --operations ops.json   # 生成后改行
+python scripts/craft_flow.py export process-card.xlsx
 ```
 
 `status` 是唯一的入口探针：阶段、`blocking_action`、计数、下一步。

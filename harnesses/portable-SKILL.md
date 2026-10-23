@@ -45,8 +45,11 @@ url = "http://<mcp-host>:<mcp-port>/mcp"
 
 ## 1. 一次完整链路
 
+脚本随技能目录走：`skills/craft-process-workbench/scripts/craft_flow.py`；仓库检出时用 `tools/craft_flow.py`（同一实现的兼容入口）。先把地址验通：
+
 ```bash
 export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
+python tools/craft_flow.py health
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py wait
 python tools/craft_flow.py dump

@@ -117,9 +117,11 @@ docs/10-harness-interaction.md 按 harness 能力分档的交互方式
 docs/11-portability.md     换一个 harness 怎么跑（CLI / 技能 / 单文件）
 mcp.example.json           客户端配置模板（地址用占位符）
 skills/                    两份可安装的 SKILL.md 与安装说明
+skills/craft-process-workbench/scripts/  技能自带的 CLI（craft_flow.py、craft_upload.py）
 harnesses/portable-SKILL.md 单文件版手册，给没有技能系统的 harness
 tools/README.md            六个脚本的用途、参数与退出码
-tools/craft_flow.py        一条命令推进一步，跨 harness 的驱动脚本
+tools/craft_flow.py        兼容入口，实现在技能目录里
+tools/craft_upload.py      兼容入口，实现在技能目录里
 tools/skill_drift_check.py 检查 skills/ 是否落后于 docs/
 tools/ask.py               中立问题清单 → md / html / json / tui，并解析回复
 tools/craft_discover.py    验证候选地址并做服务名指纹比对
