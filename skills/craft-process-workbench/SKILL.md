@@ -67,7 +67,7 @@ Codex 与 opencode 的键名各版本有差异，写前对一眼它们的文档�
 2. `initialize` 返回 `200` + `mcp-session-id` 头 + body 有 `serverInfo`。
 3. `tools/list` 里有 17 个 `craft_*`。只过第 2 件说明壳活着但工具没挂上。
 
-配置里的 `<mcp-host>` 从哪来：环境变量 `CRAFT_MCP_URL` → `~/.config/craft-process/endpoints.json` → 问部署负责人。**不要猜、不要扫网段。**
+`<mcp-host>` 是**壳**的地址，不是后端地址——两者不同端口，把后端端口填成 `/mcp` 只会得到 404。按顺序取：环境变量 `CRAFT_MCP_URL` → `~/.config/craft-process/endpoints.json` 的 `mcp` 字段 → 问部署方要「MCP 端点」（明确说是 `/mcp` 那个，不是后端）。有主机权限就 `ss -tlnp` 看 uvicorn 监听了什么，再发 `initialize` 验 `200` + `mcp-session-id`；端口开着不算数。**不要猜、不要扫网段。**
 
 ## 有 CLI 时优先用 CLI
 
@@ -221,5 +221,5 @@ CLI：`craft_flow.py edit --operations ops.json`，归一化已内置。
 
 ## 事实源
 
-权威文档：`https://github.com/jayyuan667/craft-process-mcp-guide`（`docs/05` 操作手册、`docs/11` 接入与跨 harness 运行、`docs/03` 闸门、`docs/07` 真实链路证据）。与本 skill 冲突时以仓库为准，并回报冲突。
+权威文档：`https://github.com/jayyuan667/craft-process-mcp-guide`（`docs/05` 操作手册、`docs/08` 地址发现、`docs/11` 接入与跨 harness 运行、`docs/03` 闸门、`docs/07` 真实链路证据）。与本 skill 冲突时以仓库为准，并回报冲突。
 
