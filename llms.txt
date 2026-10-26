@@ -7,7 +7,7 @@
 - [05 agent 操作手册](docs/05-agent-playbook.md)：动作、判据、禁令，先读这个
 - [11 跨 harness 运行](docs/11-portability.md)：用 `tools/craft_flow.py` 一条命令推进一步，不需要 MCP 客户端
 - [02 快速开始](docs/02-quickstart.md)：每一步的完整命令与验收标准
-- [04 故障手册](docs/04-troubleshooting.md)：按症状查，13 条
+- [04 故障手册](docs/04-troubleshooting.md)：按症状查，14 条
 - [09 提问格式](docs/09-asking-humans.md) / [10 harness 交互](docs/10-harness-interaction.md)：需要人确认时怎么问
 - [07 现场笔记](docs/07-field-notes.md)：真实运行的证据与 revision 时间线
 
@@ -35,6 +35,7 @@
 - 选模板之前先看候选的 `required_features` / `missing`，缺哪个结构当场问人，别等 422。
 - 槽位确认属于本次 job，值看起来一样也要重新列给人确认。
 - 不猜地址、不扫网段；找不到就问部署负责人。
+- 默认部署无鉴权：只在本机或受控内网用；不要把 5199 直接暴露到公网。见 docs/01 的安全边界。
 
 ## 工具
 

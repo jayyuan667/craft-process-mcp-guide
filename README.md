@@ -4,6 +4,8 @@
 
 一套把「二维图纸 → 结构化特征 → 模板工艺卡」封装成 MCP 工具的服务，在真实部署和真实图纸上踩过坑之后的实践笔记。本仓库只记录部署方式、接口契约、工作流闸门和修复方案，**不包含任何服务端源码、企业名称、图号或真实主机地址**。
 
+**这个 build 没有鉴权**：默认只适合本机或受控内网，对外要点见 [docs/01 的安全边界](docs/01-architecture.md#安全边界)。
+
 文档以中文为主；`patches/` 是面向上游代码评审的英文提案。仓库里没有服务地址，按 [docs/08](docs/08-endpoint-discovery.md) 的顺寻找。
 
 ## 这是什么
@@ -63,6 +65,7 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 | --- | --- |
 | MCP 能握手，工具调用报连接失败 | 壳到后端那一跳，不是 MCP 配置 |
 | 工具报「文件不存在」 | 路径是相对壳所在主机解析的 |
+| 配置成 5199 的 `/mcp` 得到 404 | 那是后端；壳在 8764，见 docs/04 第 14 条 |
 | 写操作返回 409 | `revision` 过期，先重读 workbench |
 | 生成工艺卡 409 | 候选模板不等于已选模板 |
 | 生成返回成功但没有卡 | 实际出卡的是 `slot-review`，见现场笔记 5.4 |
@@ -107,7 +110,7 @@ LICENSE / NOTICE           Apache-2.0
 docs/01-architecture.md    两段式架构与分层排障
 docs/02-quickstart.md      从接入到出卡（人读）
 docs/03-workflow-and-gates.md  闸门、取值来源与红线
-docs/04-troubleshooting.md 按症状查的故障手册（13 条）
+docs/04-troubleshooting.md 按症状查的故障手册（14 条）
 docs/05-agent-playbook.md  给 agent 的动作、判据与禁令
 docs/06-optimization-plan.md 分三批的优化方案、验收标准与补丁状态
 docs/07-field-notes.md     一次真实链路的证据与 revision 时间线

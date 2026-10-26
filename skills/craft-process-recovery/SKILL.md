@@ -1,6 +1,6 @@
 ---
 name: "craft-process-recovery"
-description: "craft-process 工艺工作台出错时的排查与恢复：工具不出现、initialize 通但工具为空、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址、复核异常变慢。工具调用失败或状态卡住时使用。"
+description: "craft-process 工艺工作台出错时的排查与恢复：工具不出现、initialize 通但工具为空、后端端口当 MCP 端点、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址、复核异常变慢。工具调用失败或状态卡住时使用。"
 ---
 
 # craft-process 故障恢复
@@ -37,6 +37,7 @@ description: "craft-process 工艺工作台出错时的排查与恢复：工具�
 | `initialize` 通但 `tools/list` 为空 | 壳活着、工具没挂上 | 查壳的路由与版本；急用就先走 CLI |
 | 工具连不上，但握手正常，错误文本带 loopback 地址 | 壳配置 `127.0.0.1`/`localhost`，在壳的命名空间里解析；容器里那就是容器自己 | 改成壳可达的地址（常见是容器网桥网关），**重建**容器——`restart` 不重读 env |
 | MCP 端口上 `/health` 404 | 不是每个构建都暴露该路由 | 用 `initialize` 判活，后端单独探它自己的 health |
+| 配成 5199 的 `/mcp`，返回 Flask 风格 404 | 那是后端，不是壳；本部署壳在 8764 | 改配 `:8764/mcp`，发 `initialize` 验 `200` + `mcp-session-id`；不要扫端口 |
 | 工具报「文件不存在」 | 路径在壳所在主机解析，跨主机不传输字节 | 把文件放到壳能读的位置，或 multipart 直传后端 |
 | 写操作返回 409 | revision 过期 | 重读工作台，把意图应用到当前对象上，带新 revision 写。**不要循环重发同一载荷**——revision 一直变说明有另一个客户端在写，停下来对账 |
 | 有候选，generate 仍 409 | 候选 ≠ 已选 | 先 `template-selection` |
@@ -110,5 +111,5 @@ description: "craft-process 工艺工作台出错时的排查与恢复：工具�
 
 ## 事实源
 
-`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十三条故障的完整版、`docs/05 §5.5` 分工与耗时预算、`docs/11` 接入配置与验证三步、`docs/01` 架构与分层排障、`docs/08` 地址发现。与本 skill 冲突时以仓库为准，并回报冲突。
+`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十四条故障的完整版、`docs/05 §5.5` 分工与耗时预算、`docs/11` 接入配置与验证三步、`docs/01` 架构与分层排障、`docs/08` 地址发现。与本 skill 冲突时以仓库为准，并回报冲突。
 
