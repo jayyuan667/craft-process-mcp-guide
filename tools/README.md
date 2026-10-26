@@ -29,6 +29,11 @@ python tools/craft_flow.py export process-card.xlsx
 
 `edit` 会自动把 `工时` 归一化成字符串——传数字 `0` 会被服务端当空值（见 [docs/04 第 13 条](../docs/04-troubleshooting.md)）。
 
+两道闸门是刻意加的：
+
+- `presence` 要求 answers 覆盖 `presence --list` 列出的全部结构项，并写 `"source": "human"`，缺项或没声明来源直接退出 `4`。这是为了堵「有人没被问过、却按 no 提交」。
+- `match` 在没有同图号候选（0 候选，或全 partial）时，自动打印 `low_frequency` 里所有 `no` 项，提示回去逐条确认。
+
 退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过（不导出）。
 
 ## craft_upload.py

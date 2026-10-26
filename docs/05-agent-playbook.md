@@ -127,20 +127,25 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 
 ## 6.5 结构特征与分支条件
 
-`POST /feature-presence` 管两件事：结构特征的「有/无」，以及三个分支条件。**`features` 必须是列表**，传对象会 422「特征选择格式不正确」。
+`POST /feature-presence` 管两件事：结构特征的「有/无」，以及三个分支条件。**结构判断和尺寸复核一样是人工闸门，不许代判**：先 `craft_flow.py presence --list` 把服务端认识的全部项（含 `low_frequency` 默认 `no` 的）连当前值、部位、证据摆给人，逐条要 yes/no；**没回答的项不能按 no 提交**。
+
+提交文件必须覆盖全部项，并声明来源：
 
 ```json
-{"features": [{"feature_id": "KEYWAY", "presence": "yes"},
-              {"feature_id": "SQUARE", "presence": "no"}],
- "branch_conditions": {"material": "GH901", "billet_type": "中小锻件", "route_prefix": "28F"},
- "revision": 8}
+{"source": "human",
+ "features": {"THREAD": "yes", "SQUARE": "no", "BALL_HEAD_KEYWAY": "yes"},
+ "branch_conditions": {"material": "GH901", "billet_type": "中小锻件", "route_prefix": "28F"}}
 ```
 
-三条硬规则：
+CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`、值不是 yes/no。REST 载荷形状不同：`features` 是列表 `[{"feature_id", "presence"}]`，传对象会 422「特征选择格式不正确」。
 
-1. **分支条件不填，`blocking_action` 会卡在 `confirm_features` 不动。** 它和特征复核是两道提交，别以为确认完特征就过了。
-2. **三个条件图纸上通常都没有。** 选项由服务端给（每次部署不同，读工作台的候选值），只能问人。**没有「猜一个」这个选项**——某些构建不接受 `unknown`，即使接受，也不该拿它顶替一个业务决定。
-3. **提交后会顺带触发一次模板匹配**，所以改结构判断会重算候选。反复改 presence 会让 `revision` 一路涨，别拿它当试错按钮。
+其余规则：
+
+1. **用业务键，不用框 id。** `THREAD` / `SQUARE` / `END_OUTER_SQUARE` / `BALL_HEAD_KEYWAY` 是提交用的键；`review.features` 里的 `overall_length:1` 是尺寸项，`yolo:1:1:四方` 是检测框 id，拿它提交会 422「特征不属于当前任务」。
+2. **框错不等于特征不存在。** 检测框落在标注区只说明框错了；真实案例里键槽的框落在尺寸文字区，但技术要求写明「键槽及周围 5mm 不氮化」——框该否，特征该留。
+3. **分支条件图上通常没有**，必须问人。选项由服务端给，不要自己编，也不要拿 `unknown` 顶替业务决定。
+4. **先结构、后尺寸。** 结构决定候选池，尺寸只影响槽位。能先提 presence 就先提；服务端要求先复核尺寸就按 `blocking_action` 走，但匹配后一旦发现池里没有当前图号，立刻回 presence。
+5. 提交会顺带触发匹配，反复改结构判断会让 `revision` 一路涨，别拿它当试错按钮。
 
 ## 7. 模板匹配 → 选择
 
@@ -149,6 +154,10 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 判据：`blocking_action` 前进、stage 进入 replace。**不要等 `replacement` 填充**——选择前它是 null，候选在 `decision.candidates`；`selected_template_id` 在有些版本选完仍是 null，别拿它当唯一判据。
 
 **选候选不要只看 `match_strength`。** 候选可以全是 `complete`，看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
+
+**候选里没有当前图号，先怀疑结构判断。** 当 `complete` 为 0、或所有候选的参考图号都不等于当前图号时，`craft_flow.py match` 会自动打印 `low_frequency` 里全部 `no` 的项。逐条回图确认这些 no——尤其是 `BALL_HEAD_KEYWAY`、`END_OUTER_SQUARE`、`SQUARE` 这类低频结构——翻正后重跑 `presence` 再 `match`。真实案例：第一轮 4 个候选全 partial、正主不在池里；把 `SQUARE` 和 `BALL_HEAD_KEYWAY` 判对后，同图号模板立刻出现。
+
+**对方回答的不是候选，就别硬选。** 用户回「球头带键槽、四方、螺纹」这类结构词，是在纠正上游判断，不是选模板；回 `presence` 重提，再看候选。
 
 **参考图号不匹配时显式提示。** 把当前图号与 `reference_drawing` 并排列给用户。用户明确选择其他模板时可以遵从，但要记录为**人工选择**，并在生成前重点核对槽位和工序内容。
 

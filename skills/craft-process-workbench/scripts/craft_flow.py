@@ -335,13 +335,47 @@ def cmd_review(args) -> int:
 def cmd_presence(args) -> int:
     state = load_state(args.job)
     job = state["job_id"]
-    answers = json.loads(Path(args.answers).expanduser().read_text(encoding="utf-8"))
     wb = refresh(job)
+    catalog = structural_catalog(wb)
 
+    if args.list:
+        if not catalog:
+            print("服务端没有暴露结构特征清单；直接读工作台的 auto_features / low_frequency。")
+            return 0
+        print(f"结构特征 {len(catalog)} 项（当前值是服务端的，逐条问人后再改）")
+        for item in catalog:
+            evidence = f" · {item['evidence']}" if item["evidence"] else ""
+            print(f"  {item['feature_id']:<22}{item['name']:<8}"
+                  f" 当前={item['presence']:<7} 来源={item['source']}{evidence}")
+        print('answers 形状：{"source": "human", "features": {"SQUARE": "yes", ...}, '
+              '"branch_conditions": {...}}')
+        return 0
+
+    if not args.answers:
+        return print_err("缺少 --answers；先跑 presence --list 看清有哪些项。", 1)
+    answers = json.loads(Path(args.answers).expanduser().read_text(encoding="utf-8"))
     features = answers.get("features") or {}
     branch = answers.get("branch_conditions") or {}
     if not features and not branch:
         return print_err("answers 里既没有 features 也没有 branch_conditions。", 1)
+
+    required = {item["feature_id"] for item in catalog}
+    missing = sorted(required - set(features))
+    if missing:
+        return print_err(
+            f"结构判断不完整：还有 {len(missing)} 项没定——{', '.join(missing)}。\n"
+            "先 presence --list，把每一项都问过人再提交；少一项也不发。", 4)
+    if features and answers.get("source") != "human":
+        return print_err('这批判断必须来自人工确认：在 answers 里加 "source": "human"。', 4)
+    invalid = [key for key, value in features.items() if value not in ("yes", "no")]
+    if invalid:
+        return print_err(f"presence 只能是 yes / no：{', '.join(invalid)}", 4)
+
+    unresolved_branch = [bc.get("field") for bc in (wb.get("review") or {}).get("branch_conditions") or []
+                         if not (branch.get(bc.get("field")) or bc.get("value"))]
+    if unresolved_branch:
+        return print_err(
+            "分支条件还没给全：" + ", ".join(unresolved_branch) + "。图纸上通常没有，必须问人。", 4)
 
     payload = {
         "revision": wb.get("revision"),
@@ -360,6 +394,61 @@ def cmd_presence(args) -> int:
     return 0
 
 
+def drawing_number(wb: dict) -> str:
+    files = (wb.get("drawing") or {}).get("files") or []
+    if not files:
+        return ""
+    return Path(files[0].get("name") or "").stem
+
+
+def structural_catalog(wb: dict) -> list[dict]:
+    """Every structural switch the server knows about, with its current value."""
+    items: dict[str, dict] = {}
+
+    def add(item: dict, source: str, **extra) -> None:
+        fid = item.get("feature_id")
+        if not fid:
+            return
+        evidence = (item.get("evidence") or "").replace("\n", " ").strip()
+        if any(ch in evidence for ch in '{}"'):
+            evidence = ""
+        items[fid] = {
+            "feature_id": fid,
+            "name": item.get("name") or items.get(fid, {}).get("name", ""),
+            "presence": item.get("presence") or "unknown",
+            "source": source,
+            "evidence": evidence[:60],
+            **extra,
+        }
+
+    structural = ((wb.get("extraction") or {}).get("structural_features") or {})
+    for item in structural.get("features") or []:
+        add(item, "structural")
+    review = wb.get("review") or {}
+    for item in review.get("auto_features") or []:
+        add(item, "auto")
+    for item in review.get("low_frequency") or []:
+        add(item, "low_frequency")
+    return list(items.values())
+
+
+def explain_empty_pool(wb: dict, current: str = "") -> None:
+    review = wb.get("review") or {}
+    selected = [f["feature_id"] for f in review.get("auto_features") or []
+                if f.get("presence") == "yes"]
+    flips = [f for f in review.get("low_frequency") or [] if f.get("presence") == "no"]
+
+    print("\n诊断：没有当前图号的模板进池" + (f"（{current}）" if current else ""))
+    if selected:
+        print("  已判 yes：" + ", ".join(selected))
+    if flips:
+        print(f"  默认 no 的可翻转项 {len(flips)} 个：")
+        for item in flips:
+            print(f"    - {item['feature_id']}（{item.get('name', '')}）")
+        print("  逐条问人：这些 no 里有没有其实是 yes 的？改完再跑 presence、再 match。")
+    print("  接口不会告诉你「若 X=yes 则某模板可入池」，别等它提示。")
+
+
 def cmd_match(args) -> int:
     state = load_state(args.job)
     job = state["job_id"]
@@ -367,7 +456,8 @@ def cmd_match(args) -> int:
     result = post(job, "template-match", {"revision": wb.get("revision")}, timeout=180)
     candidates = (result.get("decision") or {}).get("candidates") or []
     if not candidates:
-        return print_err("没有候选模板。检查特征与分支条件。", 3)
+        explain_empty_pool(wb, drawing_number(wb))
+        return print_err("没有候选模板，先按上面的 no 清单回图确认。", 3)
     print(f"候选 {len(candidates)} 个（参考图号 ≠ 当前图号 = 借档）")
     for cand in candidates[: args.limit]:
         preview = cand.get("template_preview") or {}
@@ -377,6 +467,13 @@ def cmd_match(args) -> int:
               f"ops={preview.get('operation_count')}"
               f"{'  missing=' + ','.join(missing) if missing else ''}"
               f"{'  [recommended]' if cand.get('is_recommended') else ''}")
+
+    current = drawing_number(wb)
+    home = [c for c in candidates
+            if (c.get("template_preview") or {}).get("reference_drawing") == current]
+    complete = [c for c in candidates if c.get("match_strength") == "complete"]
+    if not home or not complete:
+        explain_empty_pool(wb, current)
     print("下一步  craft_flow.py select <template_id>")
     return 0
 
@@ -637,8 +734,9 @@ def main() -> int:
     r.add_argument("--answers", required=True)
     r.set_defaults(func=cmd_review)
 
-    p = sub.add_parser("presence", help="结构特征与分支条件")
-    p.add_argument("--answers", required=True)
+    p = sub.add_parser("presence", help="结构特征与分支条件（必须覆盖全部项）")
+    p.add_argument("--answers", help="人工确认后的答案文件；--list 时不需要")
+    p.add_argument("--list", action="store_true", help="列出全部结构特征与当前值，逐条问人用")
     p.set_defaults(func=cmd_presence)
 
     m = sub.add_parser("match", help="算候选模板")

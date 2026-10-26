@@ -99,6 +99,7 @@ python scripts/craft_flow.py upload drawing.png
 python scripts/craft_flow.py wait
 python scripts/craft_flow.py previews --download ./previews
 python scripts/craft_flow.py review --answers review.json
+python scripts/craft_flow.py presence --list
 python scripts/craft_flow.py presence --answers presence.json
 python scripts/craft_flow.py match
 python scripts/craft_flow.py select <template-id>
@@ -160,24 +161,43 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 
 > 错值可能不出现在卡里：模板正文不含该数值时，错值照样产出看起来正常的卡。那是模板粗糙抵消了识别错误，不是闸门挡住了它。不要用"上次卡是对的"推断这次也对。
 
-## 5. 结构特征与分支条件
+## 5. 结构特征与分支条件（必须逐条问人）
 
-`POST /feature-presence` 管「有/无」和三个分支条件。**`features` 必须是列表**，传对象会 422「特征选择格式不正确」：
+**结构判断和尺寸复核一样是人工闸门，不许代判。** `presence --list` 列出服务端认识的全部结构项——包括 `low_frequency` 里默认 `no` 的——把每项的当前值、名称、证据摆给人，逐条要 yes / no。**没回答的项不能按 no 提交。**
 
-```json
-{"features": [{"feature_id": "KEYWAY", "presence": "yes"},
-              {"feature_id": "SQUARE", "presence": "yes"}],
- "branch_conditions": {"material": "<material>", "billet_type": "<billet-type>", "route_prefix": "<route-prefix>"},
- "revision": 3}
+```bash
+python scripts/craft_flow.py presence --list
 ```
 
-分支条件不填，`blocking_action` 会卡在 `confirm_features` 不动。图纸上通常没有材料，只能问人；选项由服务端给（每次部署不同，读工作台的候选值）。**不要自己编，也别指望 `unknown`——有些构建不接受它**。提交后会顺带触发模板匹配，所以反复改结构判断会让 `revision` 一路涨。
+提交的是人给的答案，且必须覆盖全部项、带来源：
+
+```json
+{"source": "human",
+ "features": {"THREAD": "yes", "SQUARE": "no", "BALL_HEAD_KEYWAY": "yes"},
+ "branch_conditions": {"material": "<material>", "billet_type": "<billet-type>", "route_prefix": "<route-prefix>"}}
+```
+
+命令行会拦三种：缺项（列出缺哪些）、没有 `source: human`、值不是 yes/no。不要绕过——缺项通常就是有人没被问过。
+
+REST 形状不同：`POST /feature-presence` 的 `features` 是列表 `[{"feature_id", "presence"}]`，传对象会 422。
+
+其余规则：
+
+- 用业务键（`THREAD` / `SQUARE` / `END_OUTER_SQUARE` / `BALL_HEAD_KEYWAY`），不要用尺寸 id（`overall_length:1`）或 YOLO 框 id（`yolo:1:1:四方`），后者会 422「特征不属于当前任务」。
+- **YOLO 框错 ≠ 特征不存在。** 框落在标注区只能说明框错了，不能当否定依据。
+- 分支条件图上通常没有，必须问人；别指望 `unknown` 兜底。
+- **先结构、后尺寸**：结构决定候选池，尺寸只影响槽位。能先提 presence 就先提；服务端要求先复核尺寸就按 `blocking_action` 走，但匹配后一旦发现池里没有当前图号，立刻回 presence。
+- 提交会顺带触发匹配，反复改结构判断会让 `revision` 一路涨。
 
 ## 6. 模板匹配与选择
 
 候选在 `decision.candidates`；`replacement` 在选择前是 null，不要等它填充。
 
 **不要只看 `match_strength`。** 候选可以全部是 `complete`，区别在 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
+
+**候选里没有当前图号 = 结构判断大概率漏了。** 当 `complete` 为 0、或所有候选的 `reference_drawing` 都不等于当前图号时，`match` 会自动打印 `low_frequency` 里所有 `no` 的项。逐条回图确认这些 no——尤其 `BALL_HEAD_KEYWAY`、`END_OUTER_SQUARE`、`SQUARE` 这类低频结构——翻正后重跑 `presence` 再 `match`。不要因为"有 4 个候选"就直接挑最像的。
+
+**用户回答的不是候选，就别硬选。** 对方回「球头带键槽、四方、螺纹」这类结构词，是在纠正上游判断，不是在选模板；回 `presence` 重提，再看候选。
 
 **选之前先看 `required_features` / `missing`**，缺哪个结构当场问人，别等 422 顶回来——「模板缺少关键特征：SQUARE」不是让你换模板，是要一个结构判断。
 

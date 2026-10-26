@@ -146,10 +146,12 @@
 
 ## 15. 模板匹配返回 0 个候选
 
-现象：`match` 输出「没有候选模板」，`decision.candidates` 为空，`blocking_action` 停在 `select_template`。
+现象：`match` 输出「没有候选模板」，`decision.candidates` 为空，`blocking_action` 停在 `select_template`。**另一种同源现象是「有候选但全是 partial、没有当前图号」**——池子里有东西，但正主没进来。
 
 检查：看 `manual_filter.before_count`。它也是 `0` 就说明**过滤前就没有模板**，与特征组合无关；非 `0` 而 `after_count` 是 `0`，才是被条件筛掉了。
 
 原因：没有模板进入候选池。可能是该 `library_key` 下没有这个件的模板，也可能整个库是空的——接口不暴露库存，无法从返回体区分。**不要因此断言整个库为空**：同一实例上别的图可能匹配得到（实测同一天另一张图拿到了同图号模板）。
 
 处理：停，不要编模板号、不要反复改结构特征试探（实测 5 种组合全 0，含最简组合）。把 `job_id`、`before_count`、`revision`、已确认特征交给部署方，问这个件有没有模板；确认没有就导入模板或换实例。恢复后重跑 `match`，特征复核结果保留。判别表见 [05 §7](05-agent-playbook.md#候选为-0没有模板进池不是选错)。
+
+**但先做一件事：把 `low_frequency` 里所有 `no` 的项逐条回图确认。** 真实案例：一轮 `before_count=0` 被判定「库为空」，其实把 `SQUARE` 和 `BALL_HEAD_KEYWAY` 判对后，同图号模板 T01 立刻出现。`craft_flow.py match` 现在会在没有同图号候选时自动打印这份 no 清单。
