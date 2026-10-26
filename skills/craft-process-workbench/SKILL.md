@@ -1,6 +1,6 @@
 ---
 name: "craft-process-workbench"
-description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、模板选择、槽位确认、出卡、改卡与导出。技能自带 CLI，下载后给一个后端地址即可跑，不必先配 MCP。明确禁止重做服务端已完成的提取与换算。首次使用先跑 doctor；出错、409、超时、状态不对时改用 craft-process-recovery。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
+description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、结构判断、模板选择、槽位确认、出卡、改卡与导出。技能自带 CLI，下载后给一个后端地址即可跑，不必先配 MCP。结构特征必须逐条问人，presence 缺项或非人工来源会被拒绝。首次使用先跑 doctor；出错时改用 craft-process-recovery。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
 ---
 
 # craft-process 工艺工作台
@@ -109,7 +109,7 @@ python scripts/craft_flow.py edit --operations ops.json
 python scripts/craft_flow.py export process-card.xlsx
 ```
 
-`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
+`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"source": "human", "features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
 
 没有 CLI 时，下面各节是它背后的 REST 契约，照着手打。
 

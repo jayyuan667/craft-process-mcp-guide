@@ -108,7 +108,7 @@ python scripts/craft_flow.py edit --operations ops.json
 python scripts/craft_flow.py export process-card.xlsx
 ```
 
-`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
+`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"source": "human", "features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
 
 没有 CLI 时，下面各节是它背后的 REST 契约，照着手打。
 
