@@ -27,7 +27,7 @@ description: "craft-process 工艺工作台出错时的排查与恢复（正常�
 2. **`initialize` 通、`tools/list` 空**——壳活着但工具没挂上，查壳的 MCP 路由与版本。
 3. **工具在、调用报连接失败**——壳到后端那一跳，改客户端配置没有用。
 
-前两种都不必等修好：技能自带 `scripts/craft_flow.py`（仓库检出时用 `tools/craft_flow.py`），直接走 REST，流程照跑；先用 `health` 确认连的是目标后端。
+前两种都不必等修好：技能自带 `scripts/craft_flow.py`（仓库检出时用 `tools/craft_flow.py`），直接走 REST，流程照跑；先用 `doctor` 或 `health` 确认连的是目标后端。
 
 ## 症状速查
 

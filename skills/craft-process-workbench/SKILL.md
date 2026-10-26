@@ -92,7 +92,8 @@ Codex 与 opencode 的键名各版本有差异，写前对一眼它们的文档�
 **先给地址**，按顺序取：`--backend`（写在子命令之前）→ 环境变量 `CRAFT_BACKEND_URL` → `~/.config/craft-process/endpoints.json` 的 `backend`。都没有时 `health` 会直接说没有地址，不会瞎连。
 
 ```bash
-python scripts/craft_flow.py health      # 验地址：200 且 service 名对得上
+python scripts/craft_flow.py doctor      # 首次使用：地址/后端/任务/下一步
+python scripts/craft_flow.py health      # 只验地址：200 且 service 名对得上
 python scripts/craft_flow.py status      # 阶段 / 阻断点 / 下一步
 python scripts/craft_flow.py upload drawing.png
 python scripts/craft_flow.py wait
