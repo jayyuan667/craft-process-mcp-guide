@@ -105,13 +105,14 @@ skills/                    two installable SKILL.md files plus install notes
 skills/craft-process-workbench/scripts/  bundled CLI (craft_flow.py, craft_upload.py)
 harnesses/portable-SKILL.md single-file manual for harnesses without skills
 mcp.example.json           client config template (placeholder host)
-tools/README.md            six scripts, their flags and exit codes
+tools/README.md            seven scripts, their flags and exit codes
 tools/craft_flow.py        compatibility entry; implementation lives in the skill
 tools/craft_upload.py      compatibility entry; implementation lives in the skill
 tools/ask.py               neutral questions -> md / html / json / tui, and parse replies
 tools/craft_discover.py    verify candidate endpoints by service fingerprint
 tools/review_sheet.py      turn a workbench into a clickable review sheet
 tools/skill_drift_check.py check whether skills/ lags behind docs/
+tools/build_portable.py    generate the single-file manual from the skill
 examples/                  runnable sample inputs such as questions.json
 patches/                   thirteen English fix and improvement proposals
 ```

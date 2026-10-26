@@ -2,6 +2,8 @@
 
 这一页给**人**看，走完整条链路并给出每一步的验收判据。要驱动它的 agent 看 [05-agent-playbook.md](05-agent-playbook.md)；这一步为什么这样设计，看 [03-workflow-and-gates.md](03-workflow-and-gates.md)；真实运行的证据与时间线在 [07-field-notes.md](07-field-notes.md)。
 
+> 本页的判据是复述，便于连续阅读；**权威版本在 03（闸门）与 05（动作）**，冲突时以那边为准。单文件版由 `tools/build_portable.py` 从 skill 生成，不手改。
+
 占位符：`<mcp-host>` 是 MCP 壳，`<backend-host>` 是业务后端。地址不在仓库里，按 [08-endpoint-discovery.md](08-endpoint-discovery.md) 的顺寻找。
 
 ## 1. 接上

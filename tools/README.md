@@ -1,6 +1,6 @@
 # 工具参考
 
-六个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步，以及「换一个 harness 怎么跑」这件事。
+七个脚本都只依赖 Python 标准库，`review_sheet.py` 额外需要 Pillow。它们解决的是 MCP 工具本身覆盖不到、或者一超时就丢掉状态的那几步，以及「换一个 harness 怎么跑」这件事。
 
 ```bash
 python3 --version        # 3.8+
@@ -123,3 +123,14 @@ python tools/skill_drift_check.py --update   # 改了 docs 并重新派生后，
 ```
 
 退出码：`0` 同源，`3` 有漂移（逐条列出哪个文档变了、最新提交说明），`1` 检查不了（网络或 git 不可用）。
+
+## build_portable.py
+
+从 `skills/craft-process-workbench/SKILL.md` 生成单文件版 `harnesses/portable-SKILL.md`。那份文件以前是手抄的，规则一改就漂；现在只允许生成。
+
+```bash
+python tools/build_portable.py           # 重新生成
+python tools/build_portable.py --check   # 不同步时退出码 3
+```
+
+无人值守那段不在主技能里，单独放在 `harnesses/fragments/unattended.md`，生成时插到「事实源」之前。

@@ -122,10 +122,11 @@ mcp.example.json           客户端配置模板（地址用占位符）
 skills/                    两份可安装的 SKILL.md 与安装说明
 skills/craft-process-workbench/scripts/  技能自带的 CLI（craft_flow.py、craft_upload.py）
 harnesses/portable-SKILL.md 单文件版手册，给没有技能系统的 harness
-tools/README.md            六个脚本的用途、参数与退出码
+tools/README.md            七个脚本的用途、参数与退出码
 tools/craft_flow.py        兼容入口，实现在技能目录里
 tools/craft_upload.py      兼容入口，实现在技能目录里
 tools/skill_drift_check.py 检查 skills/ 是否落后于 docs/
+tools/build_portable.py    从 skill 生成单文件版，禁止手改
 tools/ask.py               中立问题清单 → md / html / json / tui，并解析回复
 tools/craft_discover.py    验证候选地址并做服务名指纹比对
 tools/craft_upload.py      上传图纸：长超时、账本记账、按哈希去重
