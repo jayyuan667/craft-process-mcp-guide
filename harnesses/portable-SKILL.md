@@ -14,6 +14,22 @@
 
 不写图上没有、也没人确认过的值。不把候选当选择。不把派生值当事实。不跳过人工确认。不把失败当成功继续往下走。不猜地址、不扫网段。
 
+## 60 秒上手
+
+不知道自己接没接上、也不知道走到哪了？在技能目录下跑一条：
+
+```bash
+python scripts/craft_flow.py doctor
+```
+
+它按顺序回答四件事：地址从哪来、后端是否活着（服务名对不对）、当前任务在哪个阶段、下一步敲什么。
+
+三种开局：
+
+- **第一次接入**：报「地址 没有」→ 按第 0 节配 MCP 或设 `CRAFT_BACKEND_URL`，再跑一次。
+- **有图纸要跑**：报「任务 无」→ `upload <file>`，然后按第 1–8 节推进。
+- **中途接手**：看它给出的 `revision` 和 `blocking_action`，从对应那节继续；状态看着不对，先读 `craft-process-recovery` 的「恢复后从哪继续」。
+
 ## 分工（别抢服务端的活）
 
 服务端已经给出：特征值 / 置信度 / 部位 / 证据，槽位候选值 / 名义尺寸 / 上下偏差 / 绑定理由，模板候选 / `missing` / 参考图号，工序与工时。
@@ -153,7 +169,7 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
  "revision": 3}
 ```
 
-分支条件不填，`blocking_action` 会卡在 `confirm_features` 不动。图纸上通常没有材料，只能问人；选项由服务端给（每次部署不同，读工作台的候选值），也可留 `unknown`。提交后会顺带触发模板匹配。
+分支条件不填，`blocking_action` 会卡在 `confirm_features` 不动。图纸上通常没有材料，只能问人；选项由服务端给（每次部署不同，读工作台的候选值）。**不要自己编，也别指望 `unknown`——有些构建不接受它**。提交后会顺带触发模板匹配，所以反复改结构判断会让 `revision` 一路涨。
 
 ## 6. 模板匹配与选择
 
@@ -162,6 +178,8 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 **不要只看 `match_strength`。** 候选可以全部是 `complete`，区别在 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
 
 **选之前先看 `required_features` / `missing`**，缺哪个结构当场问人，别等 422 顶回来——「模板缺少关键特征：SQUARE」不是让你换模板，是要一个结构判断。
+
+**候选为空就是库空。** `candidates == []` 且 `manual_filter.before_count == 0`：这个 library 一个模板都没有，不是分数不够、也不是被条件筛掉。不要编模板号，也不要靠反复改 presence 试探（实测 5 种结构组合全 0）。停，把 `job_id` / `before_count` / `revision` / 已确认特征交给部署方导入模板库，或换有库的实例；恢复后重跑 `match`，复核结果保留。
 
 ```json
 {"template_id": "<template-id>", "revision": 5}

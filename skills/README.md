@@ -59,7 +59,7 @@ MCP 那条路则是把 `http://<mcp-host>:8764/mcp` 写进 harness 的 `mcpServe
 
 1. **新开会话**——技能清单不热加载，旧会话看不到。
 2. 技能列表里能看到 `craft-process-workbench` 与 `craft-process-recovery`。
-3. 在技能目录下跑 `python scripts/craft_flow.py health`，返回 `ok` 且 `service` 是预期的服务名——只返回 200 不够，可能连到了别的服务。
+3. 在技能目录下跑 `python scripts/craft_flow.py doctor`：它一次打印地址来源、后端服务名、当前任务阶段和下一步；四项都对才算装对了。只看 200 不够，可能连到了别的服务。
 4. 说一句「craft-process 怎么接」能触发主技能，且它第一步会问 `tools/list` 有没有 17 个 `craft_*`。
 
 ## 版本与同步

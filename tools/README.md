@@ -16,6 +16,7 @@ pip install Pillow       # 只有 review_sheet.py 需要
 **实现已移到 `skills/craft-process-workbench/scripts/craft_flow.py`**，这样只下载技能目录的人也能拿到客户端；`tools/craft_flow.py` 保留为兼容入口，命令与退出码完全一致。装上技能后路径写成 `scripts/craft_flow.py`。
 
 ```bash
+python tools/craft_flow.py doctor    # 首次使用：地址/后端/任务/下一步一次看完
 python tools/craft_flow.py health    # 验地址：200 且 service 名对得上
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py status

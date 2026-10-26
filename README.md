@@ -52,6 +52,8 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
 
 **如果你是要直接调用它的 agent**，跳过上面那篇，直接看 [docs/05](docs/05-agent-playbook.md)：只有动作、判据和禁令。地址按该页第 0 节读取本机配置或环境变量。机读入口见 [llms.txt](llms.txt)。
 
+第一次用，先跑 `python tools/craft_flow.py doctor`——一条命令告诉你地址从哪来、后端是否活着、当前任务卡在哪、下一步敲什么。
+
 ## 装成技能
 
 `skills/` 下有两份可直接安装的 `SKILL.md`：`craft-process-workbench`（正常跑流程）和 `craft-process-recovery`（出错时排查），两份一起装。Claude、WorkBuddy、Codex 都读同一种格式，复制到各自的技能目录即可；opencode 用 `AGENTS.md` 引用，或用 `harnesses/portable-SKILL.md` 单文件版。装法与验证见 [skills/README.md](skills/README.md)。
@@ -110,7 +112,7 @@ LICENSE / NOTICE           Apache-2.0
 docs/01-architecture.md    两段式架构与分层排障
 docs/02-quickstart.md      从接入到出卡（人读）
 docs/03-workflow-and-gates.md  闸门、取值来源与红线
-docs/04-troubleshooting.md 按症状查的故障手册（14 条）
+docs/04-troubleshooting.md 按症状查的故障手册（15 条）
 docs/05-agent-playbook.md  给 agent 的动作、判据与禁令
 docs/06-optimization-plan.md 分三批的优化方案、验收标准与补丁状态
 docs/07-field-notes.md     一次真实链路的证据与 revision 时间线

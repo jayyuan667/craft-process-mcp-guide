@@ -556,6 +556,52 @@ def cmd_health(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    """One-shot first-run check: address, backend, current job, next step."""
+    import os
+
+    print("craft-process 自检")
+    base = backend_url()
+    if not base:
+        print("1) 地址   没有")
+        print("   设 CRAFT_BACKEND_URL、传 --backend，或写 ~/.config/craft-process/endpoints.json")
+        return 1
+    source = "环境变量" if os.environ.get("CRAFT_BACKEND_URL") else "endpoints.json"
+    print(f"1) 地址   {base}（{source}）")
+
+    status, payload, _ = http("GET", f"{base}/health", timeout=10)
+    service = payload.get("service") if isinstance(payload, dict) else None
+    print(f"2) 后端   HTTP {status} · {service or '未自报服务名'}")
+    if status != 200:
+        print("   /health 不是 200：先确认地址和实例状态，别往下走")
+        return 2
+    expected = os.environ.get("CRAFT_SERVICE")
+    if expected and service and service != expected:
+        print(f"   服务名不符（期望 {expected}）：可能连到了同主机的别的服务")
+
+    if not POINTER.exists():
+        print("3) 任务   无。下一步：upload <file>")
+        return 0
+    try:
+        state = load_state(None)
+    except SystemExit:
+        print("3) 任务   指针存在但状态文件缺失，重新 upload 或指定 --job")
+        return 1
+
+    job = state["job_id"]
+    try:
+        wb = refresh(job)
+    except SystemExit as exc:
+        print(f"3) 任务   {job} 读不到工作台（退出码 {exc.code}）")
+        return 3
+
+    print(f"3) 任务   {job} · revision {wb.get('revision')} · "
+          f"{wb.get('current_stage')} · {wb.get('blocking_action')}")
+    hint = NEXT_HINT.get(wb.get("blocking_action") or "")
+    print("4) 下一步 " + (hint.replace("下一步  ", "") if hint else "status 查看"))
+    return 0
+
+
 # ---------------------------------------------------------------- cli
 
 def main() -> int:
@@ -564,6 +610,8 @@ def main() -> int:
     ap.add_argument("--job", help="任务 id；缺省用当前指针")
     ap.add_argument("--backend", help="后端地址；缺省读 CRAFT_BACKEND_URL")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("doctor", help="首次使用自检：地址、后端、当前任务、下一步").set_defaults(func=cmd_doctor)
 
     sub.add_parser("health", help="检查后端地址是否可用").set_defaults(func=cmd_health)
 

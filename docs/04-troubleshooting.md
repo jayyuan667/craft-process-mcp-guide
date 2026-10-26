@@ -143,3 +143,13 @@
 原因：壳和后端是两个进程、两个端口。本部署壳在 `8764`、后端在 `5199`；**Flask 的 404 页面本身就是「这是后端」的信号**。
 
 处理：配置改成 `http://<host>:8764/mcp`，发 `initialize` 验 `200` + `mcp-session-id` + `serverInfo`，然后新开会话看 `tools/list`。不要扫端口，找壳的四条合法路径见 [08](08-endpoint-discovery.md)。
+
+## 15. 模板匹配返回 0 个候选
+
+现象：`match` 输出「没有候选模板」，`decision.candidates` 为空，`blocking_action` 停在 `select_template`。
+
+检查：看 `manual_filter.before_count`。它也是 `0` 就说明**过滤前就没有模板**，与特征组合无关；非 `0` 而 `after_count` 是 `0`，才是被条件筛掉了。
+
+原因：这个 enterprise / `library_key` 下的模板库是空的。`relaxations == []` 不是「建议放宽」，是池子空时提不出建议。
+
+处理：停，不要编模板号、不要反复改结构特征试探（实测 5 种组合全 0，含最简组合）。把 `job_id`、`before_count`、`revision`、已确认特征交给部署方导入模板库，或换一个有库的实例；恢复后重跑 `match`，特征复核结果保留。判别表见 [05 §7](05-agent-playbook.md#候选为-0是库空不是选错)。

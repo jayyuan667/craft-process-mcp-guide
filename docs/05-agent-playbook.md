@@ -6,6 +6,8 @@
 
 每次任务开始，先读仓库里的最新 guide 和 `tools/list` 返回的实际 schema，至少核对本页、[02](02-quickstart.md) 与 [04](04-troubleshooting.md)。**guide 会更新，旧记忆只能当索引**：以仓库当前版本和工具实际返回为准，不要凭上一次会话的印象调用参数。
 
+**一条命令自检。** 有仓库时先跑 `python tools/craft_flow.py doctor`：按顺序打印地址来源、后端 `/health`（含服务名）、当前任务的 `revision` / `stage` / `blocking_action`、下一步命令。三种结果对应三种开局：没有地址就按第 0 节配，没有任务就上传，有任务就从阻断点对应的小节继续。
+
 ## 0. 拿地址
 
 **先看工具在不在。** `tools/list` 里有 17 个 `craft_*` 就直接往下走；没有的话先接 MCP——配置片段、验证三件事、以及「配完必须新开会话」都在 [11](11-portability.md)。也可以完全绕开 MCP，用同页第一节的 CLI。
@@ -123,6 +125,23 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 
 **确认成本要算清楚。** 让人「全部确认」是最便宜也最危险的交互：确认成本趋零时，人在核对的是图面，而不是在核对系统。agent 的责任是把可疑项摆到明面上，而不是把责任转移给一句「按系统值」。
 
+## 6.5 结构特征与分支条件
+
+`POST /feature-presence` 管两件事：结构特征的「有/无」，以及三个分支条件。**`features` 必须是列表**，传对象会 422「特征选择格式不正确」。
+
+```json
+{"features": [{"feature_id": "KEYWAY", "presence": "yes"},
+              {"feature_id": "SQUARE", "presence": "no"}],
+ "branch_conditions": {"material": "GH901", "billet_type": "中小锻件", "route_prefix": "28F"},
+ "revision": 8}
+```
+
+三条硬规则：
+
+1. **分支条件不填，`blocking_action` 会卡在 `confirm_features` 不动。** 它和特征复核是两道提交，别以为确认完特征就过了。
+2. **三个条件图纸上通常都没有。** 选项由服务端给（每次部署不同，读工作台的候选值），只能问人。**没有「猜一个」这个选项**——某些构建不接受 `unknown`，即使接受，也不该拿它顶替一个业务决定。
+3. **提交后会顺带触发一次模板匹配**，所以改结构判断会重算候选。反复改 presence 会让 `revision` 一路涨，别拿它当试错按钮。
+
 ## 7. 模板匹配 → 选择
 
 `craft_template_match` 只算候选，**候选不等于已选**。`craft_select_template` 才提交，可能超过 60 秒；超时后**先读工作台**，已选就继续，不要重选。
@@ -137,6 +156,23 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 
 **422 可以提前避免。** 候选列表里已经带 `required_features` 与 `missing`：选之前扫一眼，缺哪个结构当场问人，别等提交被拒。实测把 `SQUARE` 提前问清后，推荐模板第一次就是 `complete`，省掉一整趟往返。
 
+### 候选为 0：是库空，不是选错
+
+`decision.candidates == []`，同时 `manual_filter.before_count == 0`、`after_count == 0`、`relaxations == []`——匹配引擎手上一个模板都没有。这不是「分数不够」，也不是「被条件过滤掉了」。
+
+两种空要分清：
+
+| 现象 | 含义 | 动作 |
+| --- | --- | --- |
+| 候选非空，但每项都带 `missing` | 有模板，缺结构判断 | 回图确认结构，presence 后重跑 match |
+| 候选为空且 `before_count == 0` | 这个 enterprise / library 没有模板 | 停；找部署方导入模板库，或换有库的实例 |
+
+不要做的事：不要编模板号；不要为了让 `match` 有输出反复改 presence（实测 5 种结构组合全为 0，包括「仅螺纹」这种最简组合）；不要把 `relaxations == []` 读成「放宽条件就能匹配」——池子空的时候它无话可说。
+
+排查顺序：先确认 `library_key`（默认 `default`）和 enterprise 指向的是不是你以为的那个库；再看是不是换了实例而后端状态还指着旧 job；两者都对，就是库没导。
+
+停下来的正确产出：把 `job_id`、`before_count`、当前 `revision`、已确认的特征列表交给部署方。库就绪后重跑 `match` 即可，**特征复核不用重做、图纸不用重传**。
+
 ## 8. 槽位
 
 `craft_update_slots` 写值，`craft_review_slots` 记录复核。三个来源必须分清：图纸事实、人工决定、后端派生。**派生值不得当原始值写入。**
@@ -145,7 +181,7 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 
 - 候选事实可能绑错槽位。见过 Ø64 的槽位被建议 Ø164、Ø157。先比 nominal。
 - 派生值可能在生成阶段覆盖人工确认值。确认了 `-0.05/-0.10`，正式卡回来 `-0.05/-0.13`。生成后逐行比对。
-- 公差 OCR 会错。`+0.1` 被读成 `+0.01`，服务端「以图纸为准」指的也可能是错的那个。放大原图看标注。
+- 公差 OCR 会错。`+0.1` 被读成 `+0.01`，服务端「以图纸为准」指的也可能是错的那个。**可疑的**公差才放大原图，不要每一条都重读。
 
 **槽位确认属于本次 job。** 即使和你上一张图的槽位值逐字相同，也要重新列给人确认——模板可能不同、绑定位置可能不同，"上次一样"不是确认。可以在清单里注明「与上次相同」，但不能因此跳过。
 

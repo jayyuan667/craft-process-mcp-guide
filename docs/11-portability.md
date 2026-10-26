@@ -10,6 +10,7 @@
 
 ```bash
 export CRAFT_BACKEND_URL=http://<backend-host>:5199
+python scripts/craft_flow.py doctor             # 首次使用：地址/后端/任务/下一步一次看完
 python scripts/craft_flow.py health              # 200 且 service 对得上
 
 python scripts/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
@@ -111,6 +112,14 @@ Codex 与 opencode 的键名各版本有差异，写之前对一眼它们的文�
 ## 三、什么都没有：一份单文件
 
 没有技能系统、也不能装 MCP 的 harness，把 [harnesses/portable-SKILL.md](../harnesses/portable-SKILL.md) 整个塞进系统提示或项目规则（`AGENTS.md` / `CLAUDE.md` 都行）。那份是两份技能合并、去掉跨文件引用的版本，代价是比拆分版长一倍。
+
+## 平台差异
+
+Windows 上三个实际踩过的点：
+
+- **临时文件不要写 `/tmp`。** Git Bash / MSYS 的 `/tmp` 与 Python 看到的路径不一定是同一个；中间文件统一放 `~/.config/craft-process/tmp/`，两边都认。
+- **Python 启动器常叫 `py`。** 技能里的 `python scripts/craft_flow.py` 换成 `py scripts\craft_flow.py`；路径含空格时加引号。
+- **代码页。** 控制台默认不一定是 UTF-8；CLI 已经强制 stdout 用 UTF-8，自己写脚本读 `answers` 文件时要显式 `encoding="utf-8"`。
 
 ## 无人值守
 
