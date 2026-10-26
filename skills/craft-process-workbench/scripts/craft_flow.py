@@ -510,6 +510,33 @@ def cmd_select(args) -> int:
     return 0
 
 
+def warn_slot_semantics(wb: dict, values: dict) -> None:
+    """Flag values whose evidence belongs to a different process step."""
+    replacement = wb.get("replacement") or {}
+    catalog = replacement.get("catalog") or {}
+    meta: dict[str, dict] = {}
+    for group in ("drawing_slots", "parameter_slots", "derived_slots"):
+        for slot in catalog.get(group) or []:
+            meta[slot.get("slot_id")] = slot
+    candidates = replacement.get("values") or {}
+
+    warnings = []
+    for slot_id in values:
+        operation = (meta.get(slot_id) or {}).get("operation_name") or ""
+        info = candidates.get(slot_id) or {}
+        evidence = f"{info.get('evidence') or ''} {info.get('binding_reason') or ''}"
+        if "磨" in operation and "留" in evidence and "余量" in evidence:
+            warnings.append(f"{slot_id} 是{operation}工序，候选证据是「留余量」的粗加工值——"
+                            "确认填的是成品公差，不是车削值")
+        if "车" in operation and "成品" in evidence:
+            warnings.append(f"{slot_id} 是{operation}工序，候选证据偏向成品公差——"
+                            "确认没有把磨削值填进来")
+    if warnings:
+        print("注意     槽位语义核对：")
+        for line in warnings:
+            print("         - " + line)
+
+
 def cmd_slots(args) -> int:
     state = load_state(args.job)
     job = state["job_id"]
@@ -521,6 +548,7 @@ def cmd_slots(args) -> int:
         values[slot_id] = value if isinstance(value, dict) else {"value": str(value)}
 
     wb = refresh(job)
+    warn_slot_semantics(wb, values)
     result = post(job, "slots", {"revision": wb.get("revision"), "values": values}, timeout=120)
     print(f"已写入   {len(values)} 个槽位 → revision {result.get('revision')}")
     validation = (result.get("replacement") or {}).get("validation") or {}
@@ -550,6 +578,23 @@ def cmd_finalize(args) -> int:
     return 0
 
 
+def xlsx_row_count(data: bytes) -> int | None:
+    import io
+    import re
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            names = [n for n in archive.namelist() if n.startswith("xl/worksheets/sheet")]
+            if not names:
+                return None
+            names.sort()
+            sheet = archive.read(names[0]).decode("utf-8", "replace")
+        return len(re.findall(r"<row[ >]", sheet))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def cmd_export(args) -> int:
     state = load_state(args.job)
     job, base = state["job_id"], state["backend"]
@@ -564,6 +609,14 @@ def cmd_export(args) -> int:
     ctype = (headers.get("Content-Type") if headers else "") or "?"
     print(f"已导出   {out}  {len(raw)} bytes")
     print(f"类型     {ctype}")
+
+    if raw[:2] == b"PK":
+        rows = xlsx_row_count(raw)
+        if rows:
+            print(f"行数     {rows}（含表头，工序 {rows - 1}）——与工作台 operations 数对一下")
+    elif out.suffix.lower() in (".csv", ".txt"):
+        rows = len([line for line in raw.decode("utf-8", "replace").splitlines() if line.strip()])
+        print(f"行数     {rows}（含表头）")
     return 0
 
 
@@ -694,6 +747,24 @@ def cmd_doctor(args) -> int:
 
     print(f"3) 任务   {job} · revision {wb.get('revision')} · "
           f"{wb.get('current_stage')} · {wb.get('blocking_action')}")
+
+    created = state.get("created_at")
+    if created:
+        from datetime import datetime
+        try:
+            created_at = datetime.fromisoformat(created)
+            now = (datetime.now(created_at.tzinfo) if created_at.tzinfo
+                   else datetime.now())
+            age = now - created_at
+            hours = age.total_seconds() / 3600
+            label = f"{hours:.1f} 小时前" if hours >= 1 else f"{age.total_seconds()/60:.0f} 分钟前"
+            print(f"   建于     {label}（{created}）· 图 {state.get('drawing', '?')}")
+            if hours >= 2:
+                print("   注意     这是较早的任务；若与当前图纸不符，先 upload 新建，"
+                      "不要在残留任务上继续。")
+        except ValueError:
+            pass
+
     hint = NEXT_HINT.get(wb.get("blocking_action") or "")
     print("4) 下一步 " + (hint.replace("下一步  ", "") if hint else "status 查看"))
     return 0

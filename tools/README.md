@@ -34,6 +34,8 @@ python tools/craft_flow.py export process-card.xlsx
 - `presence` 要求 answers 覆盖 `presence --list` 列出的全部结构项，并写 `"source": "human"`，缺项或没声明来源直接退出 `4`。这是为了堵「有人没被问过、却按 no 提交」。
 - `match` 在没有同图号候选（0 候选，或全 partial）时，自动打印 `low_frequency` 里所有 `no` 项，提示回去逐条确认。
 
+另外三处小保护：`doctor` 打印任务年龄，超过两小时提示可能是残留任务；`slots` 提交前做工序语义核对（磨削槽位拿到「留余量」候选会警告）；`export` 回读 XLSX 行数，和工序数对一下。
+
 退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过（不导出）。
 
 ## craft_upload.py

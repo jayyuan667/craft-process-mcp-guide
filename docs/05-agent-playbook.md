@@ -6,7 +6,7 @@
 
 每次任务开始，先读仓库里的最新 guide 和 `tools/list` 返回的实际 schema，至少核对本页、[02](02-quickstart.md) 与 [04](04-troubleshooting.md)。**guide 会更新，旧记忆只能当索引**：以仓库当前版本和工具实际返回为准，不要凭上一次会话的印象调用参数。
 
-**一条命令自检。** 有仓库时先跑 `python tools/craft_flow.py doctor`：按顺序打印地址来源、后端 `/health`（含服务名）、当前任务的 `revision` / `stage` / `blocking_action`、下一步命令。三种结果对应三种开局：没有地址就按第 0 节配，没有任务就上传，有任务就从阻断点对应的小节继续。
+**一条命令自检。** 有仓库时先跑 `python tools/craft_flow.py doctor`：按顺序打印地址来源、后端 `/health`（含服务名）、当前任务的 `revision` / `stage` / `blocking_action`、下一步命令，以及任务建于多久之前。三种结果对应三种开局：没有地址就按第 0 节配，没有任务就上传，有任务就从阻断点对应的小节继续；**任务超过两小时会提示，先确认它是不是残留任务**。
 
 ## 0. 拿地址
 
@@ -196,6 +196,8 @@ CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`
 
 **公差被拒后不要猜格式。** 先确认图纸原文和工具接受的格式，做一次有依据的提交；仍被拒就保留图纸事实并停下，把校验问题转交处理。不要反复换写法——合法的 Ø75（0/−0.2）曾被反复判成格式无效，多次尝试没有推进任何状态。**停下来报告是正确结果。**
 
+**CLI 会在提交前做工序语义核对**：磨削槽位拿到「留余量」的候选、车削槽位拿到成品公差时打印警告。它不拦截，但这类值一旦进卡就是工艺错误——真实案例里磨削工序候选给的是车削粗值 `φ64，-0.42，-0.445`，正确值是 `φ64，-0.013，-0.049`。
+
 ## 9. 生成与导出
 
 `craft_generate_process_card` **不一定真正出卡**。实测返回 200 而 `process_card` 仍是 null；official 卡在 `craft_review_slots` 之后才出现。
@@ -210,7 +212,7 @@ CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`
 curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/<id>/process-card/export"
 ```
 
-按 `Content-Type` 判断格式，别信文档后缀（实测有返回 XLSX 而文档写 CSV）。
+按 `Content-Type` 判断格式，别信文档后缀（实测有返回 XLSX 而文档写 CSV）。导出后用 `craft_flow.py export` 打出的行数核一遍：**表头 + 工序数**要与工作台的 `operations` 对得上，只看 HTTP 200 不够。
 
 ### 预览图
 

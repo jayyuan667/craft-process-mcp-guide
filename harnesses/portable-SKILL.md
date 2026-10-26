@@ -22,7 +22,7 @@
 python scripts/craft_flow.py doctor
 ```
 
-它按顺序回答四件事：地址从哪来、后端是否活着（服务名对不对）、当前任务在哪个阶段、下一步敲什么。
+它按顺序回答四件事：地址从哪来、后端是否活着（服务名对不对）、当前任务在哪个阶段、下一步敲什么。任务建于多久之前也会打出来——超过两小时会提示你确认是不是残留任务。
 
 三种开局：
 
@@ -229,6 +229,8 @@ REST 形状不同：`POST /feature-presence` 的 `features` 是列表 `[{"featur
 
 **公差被拒不要猜格式。** 一次有依据的提交后仍被拒，就保留图纸事实并停下，把原文、提交值、错误响应一起转交。
 
+**槽位语义**：CLI 提交前会核一遍工序——磨削槽位拿到「留余量」的候选、车削槽位拿到成品公差时打印警告。警告不是拦截，但看到就别直接过。
+
 ## 8. 出卡与导出
 
 `generate` **不一定真正出卡**：实测返回 200 而 `process_card` 仍是 null，official 卡实际在 `slot-review` 之后才出现。
@@ -241,7 +243,7 @@ REST 形状不同：`POST /feature-presence` 的 `features` 是列表 `[{"featur
 curl -sS -o process-card.xlsx "$CRAFT_BACKEND_URL/api/jobs/{id}/process-card/export"
 ```
 
-按 `Content-Type` 和文件头判断格式，别信文档后缀——实测返回 XLSX 而文档写 CSV。
+按 `Content-Type` 和文件头判断格式，别信文档后缀——实测返回 XLSX 而文档写 CSV。`export` 会回读行数（含表头），拿它和 `operations` 条数对一下，不要只看 200。
 
 ### 预览图
 
