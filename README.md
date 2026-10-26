@@ -112,7 +112,7 @@ LICENSE / NOTICE           Apache-2.0
 docs/01-architecture.md    两段式架构与分层排障
 docs/02-quickstart.md      从接入到出卡（人读）
 docs/03-workflow-and-gates.md  闸门、取值来源与红线
-docs/04-troubleshooting.md 按症状查的故障手册（15 条）
+docs/04-troubleshooting.md 按症状查的故障手册（16 条）
 docs/05-agent-playbook.md  给 agent 的动作、判据与禁令
 docs/06-optimization-plan.md 分三批的优化方案、验收标准与补丁状态
 docs/07-field-notes.md     一次真实链路的证据与 revision 时间线

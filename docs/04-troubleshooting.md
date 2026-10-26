@@ -155,3 +155,13 @@
 处理：停，不要编模板号、不要反复改结构特征试探（实测 5 种组合全 0，含最简组合）。把 `job_id`、`before_count`、`revision`、已确认特征交给部署方，问这个件有没有模板；确认没有就导入模板或换实例。恢复后重跑 `match`，特征复核结果保留。判别表见 [05 §7](05-agent-playbook.md#候选为-0没有模板进池不是选错)。
 
 **但先做一件事：把 `low_frequency` 里所有 `no` 的项逐条回图确认。** 真实案例：一轮 `before_count=0` 被判定「库为空」，其实把 `SQUARE` 和 `BALL_HEAD_KEYWAY` 判对后，同图号模板 T01 立刻出现。`craft_flow.py match` 现在会在没有同图号候选时自动打印这份 no 清单。
+
+## 16. 摘要说可导出，但还有未确认特征
+
+现象：`status` 摘要写「工艺卡已生成，可导出」、`blocking_action=export_card`，而 `review.counts.needs_review` 是 3（通常是 `yolo:*` 的结构项）。真实运行里出现过，摘要与明细来自不同判断。
+
+检查：四字段之外再读 `review.counts`；两者不一致就是状态不同源。
+
+原因：摘要不检查结构确认数，只看卡片是否已生成。
+
+处理：**不要导出。** 把未确认项逐条问人——结构项走 `presence`（业务键），尺寸项走 `review`。CLI 的 `finalize` / `export` 会以退出码 `5` 拒绝，`status` 也会打警告；别绕过客户端这道闸门。

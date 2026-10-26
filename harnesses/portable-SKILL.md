@@ -134,6 +134,8 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 
 必看 `revision`、`current_stage`、`blocking_action`，并核对返回体的 `job_id` 等于请求的 id。**不等就停。**
 
+**摘要不可信，计数是明细。** 摘要可能写着「可导出」而 `review.counts.needs_review > 0`——这时出卡会带着没确认过的结构。`status` 现在会直接打警告，`finalize` / `export` 也会拒绝（退出码 5），别绕过。
+
 `blocking_action` 是服务端拒绝跳过的下一步：`confirm_features` → `select_template` → `review_slots` → `export_card`。
 
 ## 4. 特征复核（最容易毁数据的一步）
@@ -195,6 +197,8 @@ REST 形状不同：`POST /feature-presence` 的 `features` 是列表 `[{"featur
 **不要只看 `match_strength`。** 候选可以全部是 `complete`，区别在 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
 
 **候选里没有当前图号 = 结构判断大概率漏了。** 当 `complete` 为 0、或所有候选的 `reference_drawing` 都不等于当前图号时，`match` 会自动打印 `low_frequency` 里所有 `no` 的项。逐条回图确认这些 no——尤其 `BALL_HEAD_KEYWAY`、`END_OUTER_SQUARE`、`SQUARE` 这类低频结构——翻正后重跑 `presence` 再 `match`。不要因为"有 4 个候选"就直接挑最像的。
+
+**图号拿不到时不下结论。** CLI 只在能取到可信图号（`drawing.drawing_no`，或形如 `D1000W-264400B001` 的文件名）时才判「借档」；`image1.png` 这种文件名会被判为「图号未知」，此时它不打印借档、也不触发缺项诊断，只提示你核对参考图号与标题栏。别拿文件名当图号去对。
 
 **用户回答的不是候选，就别硬选。** 对方回「球头带键槽、四方、螺纹」这类结构词，是在纠正上游判断，不是在选模板；回 `presence` 重提，再看候选。
 

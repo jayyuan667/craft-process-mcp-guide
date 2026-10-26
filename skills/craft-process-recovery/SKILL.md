@@ -1,6 +1,6 @@
 ---
 name: "craft-process-recovery"
-description: "craft-process 工艺工作台出错时的排查与恢复（正常流程见 craft-process-workbench）。只判断断在哪一层、回到 workbench 的哪一节：工具不出现、initialize 通但工具为空、后端端口当 MCP 端点、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址、模板 0 候选。工具调用失败或状态卡住时使用。"
+description: "craft-process 工艺工作台出错时的排查与恢复（正常流程见 craft-process-workbench）。只判断断在哪一层、回到 workbench 的哪一节：工具不出现、initialize 通但工具为空、后端端口当 MCP 端点、409、选模板超时、特征表被冲掉、摘要与 needs_review 不同源、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址、模板 0 候选。工具调用失败或状态卡住时使用。"
 ---
 
 # craft-process 故障恢复
@@ -46,12 +46,13 @@ python scripts/craft_flow.py doctor
 | 工具报「文件不存在」 | 路径在壳所在主机解析 | 文件放到壳能读的位置，或 multipart 直传后端 | §1 |
 | 写操作 409 | revision 过期 | 重读工作台，把意图应用到当前对象，带新 revision 写；**不要循环重发同一载荷** | §3 |
 | 有候选，generate 仍 409 | 候选 ≠ 已选 | 先 `template-selection` | §6 |
-| 匹配 0 候选，`before_count` 也是 0 | 没有模板进池（库空或没有这个件的模板） | 停；问部署方该件有无模板，别改特征试探 | 停 |
+| 匹配 0 候选，`before_count` 也是 0 | 没有模板进池（库空，或没有这个件的模板） | 停；问部署方该件有无模板，别改特征反复试探 | 停 |
 | 分支条件选了，仍卡 `confirm_features` | 分支条件必须与 `features` 同提交 | 重读工作台，三项一起提交，`features` 用列表 | §5 |
 | 选模板超时或连接错误 | 同步长事务，服务端可能在客户端放弃后提交 | 先读工作台：已选就继续；没选再带长超时重试一次 | §6 |
 | 导出成功但没有文件 | 产物写进壳的容器 | 直连后端导出端点取响应体 | §8 |
 | 复核后特征表塌了、计数倒退 | 发了最小载荷，端点整表替换 | 见下节「特征表被冲掉」 | §4 |
 | 摘要干净但详细校验 `partial` | 两个信号不同源 | 四字段一起读，重读一次；仍矛盾就停 | §8 |
+| 摘要说「可导出」，但 `needs_review > 0` | 摘要不检查结构确认数 | **不导出**；先 review / presence，`finalize`/`export` 会以 5 拒绝 | §5 |
 | 合法公差被判格式无效 | 槽位只有字符串，校验器从显示文本解析 | 一次有依据的提交后停，把原文/提交值/错误一起转交；**不要猜格式** | 停 |
 | 改卡后 0 工时工序变空白 | `工时` 传了数字 `0` | 全部转字符串重提交，导出与改前逐行比对 | §8 |
 | 卡里公差 ≠ 确认值 | 派生规则在生成阶段重算 | 用 `process-card-edit` 改回；**不要重跑复核** | §8 |
@@ -87,5 +88,5 @@ python scripts/craft_flow.py doctor
 
 ## 事实源
 
-`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十五条故障的完整版、`docs/05` 正常流程与分工、`docs/01` 分层排障、`docs/08` 地址发现。冲突时以仓库为准。
+`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十六条故障的完整版、`docs/05` 正常流程与分工、`docs/01` 分层排障、`docs/08` 地址发现。冲突时以仓库为准。
 

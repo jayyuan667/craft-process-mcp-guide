@@ -70,6 +70,8 @@ python tools/craft_upload.py --file drawing.png --backend "$CRAFT_BACKEND_URL" -
 
 必看 `revision`、`current_stage`、`blocking_action`，并核对返回体的 `job_id` 等于你请求的 id。**不等就停**，见 [04 第 9 条](04-troubleshooting.md)。
 
+**摘要不是判据。** 摘要可能写「工艺卡已生成，可导出」，而 `review.counts.needs_review > 0`——真实运行里出现过 3 项结构未确认、阻断点却已是 `export_card`。`status` 现在会把这种矛盾打成警告，`finalize` / `export` 也会直接拒绝（退出码 5）。以明细为准。
+
 ## 5.5 分工：服务端做完的，不要重做
 
 这条和闸门同等重要——**重复分析不会让卡更准，只会把一次复核拖成几分钟**。
@@ -156,6 +158,8 @@ CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`
 **选候选不要只看 `match_strength`。** 候选可以全是 `complete`，看 `candidate.template_preview.reference_drawing`：等于当前图号的那个，槽位值和工艺文本本来属于这张图；别的图号是借另一档尺寸。
 
 **候选里没有当前图号，先怀疑结构判断。** 当 `complete` 为 0、或所有候选的参考图号都不等于当前图号时，`craft_flow.py match` 会自动打印 `low_frequency` 里全部 `no` 的项。逐条回图确认这些 no——尤其是 `BALL_HEAD_KEYWAY`、`END_OUTER_SQUARE`、`SQUARE` 这类低频结构——翻正后重跑 `presence` 再 `match`。真实案例：第一轮 4 个候选全 partial、正主不在池里；把 `SQUARE` 和 `BALL_HEAD_KEYWAY` 判对后，同图号模板立刻出现。
+
+**但图号必须可信。** 只有 `drawing.drawing_no`，或形如 `D1000W-264400B001` 的文件名，才拿来和 `reference_drawing` 比。`image1.png` 这类文件名不是图号——CLI 会判「图号未知」，不打印借档、也不触发缺项诊断，只提示人工核对标题栏。别自己拿文件名去下结论。
 
 **对方回答的不是候选，就别硬选。** 用户回「球头带键槽、四方、螺纹」这类结构词，是在纠正上游判断，不是选模板；回 `presence` 重提，再看候选。
 

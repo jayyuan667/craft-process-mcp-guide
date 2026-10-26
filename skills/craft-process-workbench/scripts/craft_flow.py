@@ -183,8 +183,17 @@ def refresh(job: str | None) -> dict:
     return wb
 
 
+def feature_counts(wb: dict) -> dict:
+    """Counts live at top level in some builds, under review in others."""
+    return wb.get("counts") or (wb.get("review") or {}).get("counts") or {}
+
+
+def pending_features(wb: dict) -> int:
+    return int(feature_counts(wb).get("needs_review") or 0)
+
+
 def banner(wb: dict) -> None:
-    counts = wb.get("counts") or {}
+    counts = feature_counts(wb)
     print(f"任务     {wb.get('job_id')}")
     print(f"阶段     {wb.get('current_stage')} / {wb.get('stage_status')}"
           f"  revision {wb.get('revision')}")
@@ -195,6 +204,10 @@ def banner(wb: dict) -> None:
               f"unresolved {counts.get('unresolved')}")
     if wb.get("summary"):
         print(f"摘要     {wb['summary']}")
+    pending = pending_features(wb)
+    if pending:
+        print(f"警告     还有 {pending} 项特征未人工确认；摘要里的「可导出」不可信，"
+              "先 review / presence")
 
 
 NEXT_HINT = {
@@ -395,10 +408,24 @@ def cmd_presence(args) -> int:
 
 
 def drawing_number(wb: dict) -> str:
-    files = (wb.get("drawing") or {}).get("files") or []
+    """Current drawing number, only when the server or filename gives a credible one."""
+    import re
+
+    drawing = wb.get("drawing") or {}
+    for key in ("drawing_no", "drawing_number", "part_no", "number"):
+        value = drawing.get(key)
+        if value:
+            return str(value)
+
+    files = drawing.get("files") or []
     if not files:
         return ""
-    return Path(files[0].get("name") or "").stem
+    stem = Path(files[0].get("name") or "").stem
+    # "image1" / "scan_02" are filenames, not drawing numbers; comparing them
+    # against reference_drawing produces false "borrowed template" conclusions.
+    if re.search(r"[A-Za-z]", stem) and "-" in stem:
+        return stem
+    return ""
 
 
 def structural_catalog(wb: dict) -> list[dict]:
@@ -438,7 +465,8 @@ def explain_empty_pool(wb: dict, current: str = "") -> None:
                 if f.get("presence") == "yes"]
     flips = [f for f in review.get("low_frequency") or [] if f.get("presence") == "no"]
 
-    print("\n诊断：没有当前图号的模板进池" + (f"（{current}）" if current else ""))
+    where = f"（{current}）" if current else ""
+    print(f"\n诊断：没有模板进池{where}")
     if selected:
         print("  已判 yes：" + ", ".join(selected))
     if flips:
@@ -449,16 +477,40 @@ def explain_empty_pool(wb: dict, current: str = "") -> None:
     print("  接口不会告诉你「若 X=yes 则某模板可入池」，别等它提示。")
 
 
+def classify_match(candidates: list[dict], current: str) -> str:
+    """empty / no_home / borrowed / partial_only / ok — used to pick the message."""
+    if not candidates:
+        return "empty"
+    complete = [c for c in candidates if c.get("match_strength") == "complete"]
+    home = [c for c in candidates if current
+            and (c.get("template_preview") or {}).get("reference_drawing") == current]
+    if current and not home:
+        return "borrowed" if complete else "no_home"
+    if not complete:
+        return "partial_only"
+    return "ok"
+
+
 def cmd_match(args) -> int:
     state = load_state(args.job)
     job = state["job_id"]
     wb = refresh(job)
     result = post(job, "template-match", {"revision": wb.get("revision")}, timeout=180)
-    candidates = (result.get("decision") or {}).get("candidates") or []
+    decision = result.get("decision") or {}
+    candidates = decision.get("candidates") or []
+    current = drawing_number(wb)
+    before = (result.get("manual_filter") or {}).get("before_count")
+
     if not candidates:
-        explain_empty_pool(wb, drawing_number(wb))
-        return print_err("没有候选模板，先按上面的 no 清单回图确认。", 3)
-    print(f"候选 {len(candidates)} 个（参考图号 ≠ 当前图号 = 借档）")
+        explain_empty_pool(wb, current)
+        hint = "模板池为空（过滤前就是 0）" if before == 0 else "候选被条件筛掉了"
+        return print_err(f"没有候选模板（{hint}），先按上面的清单回图确认。", 3)
+
+    if current:
+        print(f"候选 {len(candidates)} 个（参考图号 ≠ {current} = 借档）")
+    else:
+        print(f"候选 {len(candidates)} 个（图号未知，无法判断借档：核对参考图号与标题栏）")
+
     for cand in candidates[: args.limit]:
         preview = cand.get("template_preview") or {}
         missing = cand.get("missing") or []
@@ -468,12 +520,13 @@ def cmd_match(args) -> int:
               f"{'  missing=' + ','.join(missing) if missing else ''}"
               f"{'  [recommended]' if cand.get('is_recommended') else ''}")
 
-    current = drawing_number(wb)
-    home = [c for c in candidates
-            if (c.get("template_preview") or {}).get("reference_drawing") == current]
-    complete = [c for c in candidates if c.get("match_strength") == "complete"]
-    if not home or not complete:
+    verdict = classify_match(candidates, current)
+    if verdict == "borrowed":
+        print(f"\n没有参考图号等于 {current} 的候选：可能是借档。"
+              "逐个核对 reference_drawing 与图纸标题栏后再选，记成人工选择。")
+    elif verdict in ("no_home", "partial_only"):
         explain_empty_pool(wb, current)
+
     print("下一步  craft_flow.py select <template_id>")
     return 0
 
@@ -561,6 +614,13 @@ def cmd_finalize(args) -> int:
     state = load_state(args.job)
     job = state["job_id"]
     wb = refresh(job)
+
+    pending = pending_features(wb)
+    if pending:
+        return print_err(
+            f"还有 {pending} 项特征未人工确认，不能出卡。"
+            "先 review / presence 把它们逐条确认，再 finalize。", 5)
+
     result = post(job, "slot-review", {"revision": wb.get("revision"), "values": {}},
                   timeout=300)
     card = result.get("process_card") or {}
@@ -598,6 +658,12 @@ def xlsx_row_count(data: bytes) -> int | None:
 def cmd_export(args) -> int:
     state = load_state(args.job)
     job, base = state["job_id"], state["backend"]
+
+    pending = pending_features(refresh(job))
+    if pending:
+        return print_err(
+            f"还有 {pending} 项特征未人工确认，导出会带着未确认的结构出卡。先 review / presence。", 5)
+
     status, raw, headers = http("GET",
                                 f"{base}/api/jobs/{job}/process-card/export",
                                 timeout=180)
