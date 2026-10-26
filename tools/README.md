@@ -37,7 +37,7 @@ python tools/craft_flow.py export process-card.xlsx
 实现同样在 `skills/craft-process-workbench/scripts/craft_upload.py`，`tools/craft_upload.py` 是兼容入口。
 
 ```bash
-python tools/craft_upload.py --file drawing.png --backend http://<backend-host>:<backend-port>
+python tools/craft_upload.py --file drawing.png --backend http://<backend-host>:5199
 python tools/craft_upload.py --file drawing.png --timeout 300
 python tools/craft_upload.py --list
 python tools/craft_upload.py --file drawing.png --force
@@ -64,14 +64,14 @@ python tools/craft_upload.py --file drawing.png --force
 验证后端地址，不扫端口。先问壳（`craft_health`）要服务名，再对短名单请求 `/health`，只有 `service` 与壳报告的一致才认可。
 
 ```bash
-python tools/craft_discover.py --mcp http://<mcp-host>:<mcp-port>/mcp
-python tools/craft_discover.py --mcp ... --ports <backend-port>,5200 --save endpoints.json
+python tools/craft_discover.py --mcp http://<mcp-host>:8764/mcp
+python tools/craft_discover.py --mcp ... --ports 5199,5200 --save endpoints.json
 ```
 
 | 参数 | 默认 | 说明 |
 | --- | --- | --- |
 | `--mcp` | 必填 | MCP 端点 |
-| `--ports` | `<backend-port>` | 逗号分隔的候选端口 |
+| `--ports` | `5199` | 逗号分隔的候选端口 |
 | `--save` | — | 把结果写成 JSON |
 
 退出码：`0` 找到并验证通过；`2` 没找到；`1` 用法错误或连不上壳。输出里 `skip` 表示端口开着但服务指纹不匹配。见 [docs/08](../docs/08-endpoint-discovery.md)。

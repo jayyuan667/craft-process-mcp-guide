@@ -43,17 +43,17 @@ cp -r skills/craft-process-workbench skills/craft-process-recovery ~/.claude/ski
 
 ```bash
 # 1. 每条命令带（注意写在子命令前面）
-python scripts/craft_flow.py --backend http://<backend-host>:<port> health
+python scripts/craft_flow.py --backend http://<backend-host>:5199 health
 
 # 2. 环境变量
-export CRAFT_BACKEND_URL=http://<backend-host>:<port>
+export CRAFT_BACKEND_URL=http://<backend-host>:5199
 
 # 3. 写进配置文件（docs/08 约定的位置）
 mkdir -p ~/.config/craft-process
-echo '{"backend": "http://<backend-host>:<port>"}' > ~/.config/craft-process/endpoints.json
+echo '{"backend": "http://<backend-host>:5199"}' > ~/.config/craft-process/endpoints.json
 ```
 
-MCP 那条路则是把 `http://<mcp-host>:<port>/mcp` 写进 harness 的 `mcpServers`，片段见主技能的「先确认接没接上」一节。
+MCP 那条路则是把 `http://<mcp-host>:8764/mcp` 写进 harness 的 `mcpServers`，片段见主技能的「先确认接没接上」一节。
 
 ## 验证装好了
 

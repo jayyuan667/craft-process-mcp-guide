@@ -5,7 +5,7 @@ description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上�
 
 # craft-process 工艺工作台
 
-把二维图纸跑成模板工艺卡。服务是两层：MCP 壳（Streamable HTTP，`/<port>/mcp`，17 个 `craft_*` 工具）+ 业务后端（Flask，根路径就是网页工作台）。壳只做协议与参数映射，业务状态全在后端；两者可能不在同一网络命名空间。
+把二维图纸跑成模板工艺卡。服务是两层：MCP 壳（Streamable HTTP，`:8764/mcp`，17 个 `craft_*` 工具）+ 业务后端（Flask，`:5199`，根路径就是网页工作台）。壳只做协议与参数映射，业务状态全在后端；两者可能不在同一网络命名空间。
 
 **需要自备一个 craft-process 实例**——这套流程不附带服务，地址与模板库因部署而异。
 
@@ -35,7 +35,7 @@ description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上�
 
 ```bash
 cd ~/.claude/skills/craft-process-workbench    # WorkBuddy: ~/.workbuddy/skills/...
-python scripts/craft_flow.py --backend http://<backend-host>:<port> health
+python scripts/craft_flow.py --backend http://<backend-host>:5199 health
 ```
 
 仓库检出时同一实现在 `tools/craft_flow.py`（兼容入口）。
@@ -44,19 +44,19 @@ python scripts/craft_flow.py --backend http://<backend-host>:<port> health
 
 ```json
 // Claude 桌面端 / Claude Code（项目 .mcp.json 或客户端设置）
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 
 // WorkBuddy ~/.workbuddy/mcp.json（或 .mcp.json）
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 
 // opencode opencode.json
-{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:<port>/mcp"}}}
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
 ```
 
 ```toml
 # Codex ~/.codex/config.toml
 [mcp_servers.craft-process]
-url = "http://<mcp-host>:<port>/mcp"
+url = "http://<mcp-host>:8764/mcp"
 ```
 
 Codex 与 opencode 的键名各版本有差异，写前对一眼它们的文档；Claude 与 WorkBuddy 用同一个 `mcpServers` 形状。

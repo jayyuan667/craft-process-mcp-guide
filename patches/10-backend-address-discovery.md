@@ -18,7 +18,7 @@ This is the cheapest fix in the whole plan: the information already exists in th
   "data": {
     "service": "dica-2d-feature-extraction",
     "status": "ok",
-    "backend_url": "http://<docker-bridge-gateway>:<backend-port>",
+    "backend_url": "http://<docker-bridge-gateway>:5199",
     "backend_reachable": true,
     "tool_version": "1.0.0",
     "build": "2026-10-21"
@@ -38,8 +38,8 @@ For discovery without MCP at all:
 GET /.well-known/craft-process.json
 {
   "service": "dica-2d-feature-extraction",
-  "mcp": "http://host:<mcp-port>/mcp",
-  "backend": "http://host:<backend-port>",
+  "mcp": "http://host:8764/mcp",
+  "backend": "http://host:5199",
   "version": "1.0.0"
 }
 ```

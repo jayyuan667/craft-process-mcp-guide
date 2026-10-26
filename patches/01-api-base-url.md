@@ -7,7 +7,7 @@ Risk: deployment only. No data change, no schema change.
 The MCP shell completes `initialize`, lists its tools, and then every business tool fails:
 
 ```
-connection_error: cannot reach template process service (http://127.0.0.1:<backend-port>/health):
+connection_error: cannot reach template process service (http://127.0.0.1:5199/health):
 All connection attempts failed
 ```
 
@@ -28,13 +28,13 @@ The base URL lives in an environment file that is only read at container creatio
 Read the base URL from the environment with a sensible default, and document it:
 
 ```python
-BASE_URL = os.environ.get("CRAFT_API_BASE_URL", "http://127.0.0.1:<backend-port>").rstrip("/")
+BASE_URL = os.environ.get("CRAFT_API_BASE_URL", "http://127.0.0.1:5199").rstrip("/")
 ```
 
 In the deployment, set it to an address routable from inside the shell's namespace. For a shell on the default Docker bridge talking to a host process, the bridge gateway is the usual choice:
 
 ```dotenv
-CRAFT_API_BASE_URL=http://<docker-bridge-gateway>:<backend-port>
+CRAFT_API_BASE_URL=http://<docker-bridge-gateway>:5199
 ```
 
 Then recreate the container so the environment is re-injected:

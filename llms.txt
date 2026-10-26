@@ -13,7 +13,7 @@
 
 ## 核心事实
 
-- 壳：`http://<mcp-host>:<mcp-port>/mcp`，Streamable HTTP，无鉴权；后端：`http://<backend-host>:<backend-port>`。
+- 壳：`http://<mcp-host>:8764/mcp`，Streamable HTTP，无鉴权；后端：`http://<backend-host>:5199`。
 - 壳与后端可能不在同一网络命名空间；`initialize` 成功只证明壳活着。
 - 工作台是唯一事实源；写操作带 `revision`，409 就重读，不要重发同一载荷。
 - `GET /api/jobs` 返回 405，没有任务列表；`job_id` 丢了只能靠上传账本对账。

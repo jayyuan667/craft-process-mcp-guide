@@ -16,10 +16,10 @@ success — it is an unresolved upload, and the ledger says so. Reconcile by
 file hash: if the same drawing went up successfully within the reuse window,
 reuse that job instead of creating a second one.
 
-    craft_upload.py --file drawing.png --backend http://host:<backend-port>
-    craft_upload.py --file drawing.png --backend http://host:<backend-port> --timeout 300
+    craft_upload.py --file drawing.png --backend http://host:5199
+    craft_upload.py --file drawing.png --backend http://host:5199 --timeout 300
     craft_upload.py --list                  # attempts, results, unresolved
-    craft_upload.py --file drawing.png --backend http://host:<backend-port> --force
+    craft_upload.py --file drawing.png --backend http://host:5199 --force
 
 Exit codes: 0 uploaded or reused, 2 state unknown (timeout), 3 request failed,
 4 duplicate blocked.

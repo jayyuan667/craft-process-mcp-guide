@@ -9,8 +9,8 @@ are rejected instead of mistaken for the backend.
 Standard library only. Works on Windows, macOS and Linux.
 
 Usage:
-    python craft_discover.py --mcp http://1.2.3.4:<mcp-port>/mcp
-    python craft_discover.py --mcp ... --ports <backend-port>,<alt-port> --save endpoints.json
+    python craft_discover.py --mcp http://1.2.3.4:8764/mcp
+    python craft_discover.py --mcp ... --ports 5199,<alt-port> --save endpoints.json
 
 Exit codes: 0 found, 2 not found, 1 usage/connection error.
 """
@@ -116,9 +116,9 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
 
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mcp", required=True, help="MCP endpoint, e.g. http://host:<mcp-port>/mcp")
-    ap.add_argument("--ports", default=os.environ.get("CRAFT_BACKEND_PORTS", ""),
-                    help="comma-separated candidate ports (default: $CRAFT_BACKEND_PORTS)")
+    ap.add_argument("--mcp", required=True, help="MCP endpoint, e.g. http://host:8764/mcp")
+    ap.add_argument("--ports", default=os.environ.get("CRAFT_BACKEND_PORTS", "5199"),
+                    help="comma-separated candidate ports (default 5199; override: $CRAFT_BACKEND_PORTS)")
     ap.add_argument("--save", help="write the discovered endpoints to this JSON file")
     args = ap.parse_args()
 
@@ -163,7 +163,7 @@ def main() -> int:
             print(f"  skip    : {base} [{why}] -> {note}")
 
     print("\nNot found. Ask the deployment owner for the backend base URL, then set:")
-    print("  export CRAFT_BACKEND_URL=http://<backend-host>:<port>")
+    print("  export CRAFT_BACKEND_URL=http://<backend-host>:5199")
     print("Do not widen the port list into a scan; neighbouring ports belong to other services.")
     return 2
 

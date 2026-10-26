@@ -2,7 +2,7 @@
 
 给没有技能系统、也装不了 MCP 的 harness 用：把这份文件整个放进系统提示或项目规则。有技能系统时用拆分的两个 skill，别用这份。
 
-把二维图纸跑成模板工艺卡。服务两层：MCP 壳（`:<mcp-port>/mcp`）+ 业务后端（Flask，`:<backend-port>`）。本流程推荐直接用 CLI，不依赖 MCP 客户端。
+把二维图纸跑成模板工艺卡。服务两层：MCP 壳（`:8764/mcp`）+ 业务后端（Flask，`:5199`）。本流程推荐直接用 CLI，不依赖 MCP 客户端。
 
 ## 铁律（先读这段）
 
@@ -22,19 +22,19 @@
 
 ```json
 // Claude 桌面端 / Claude Code（.mcp.json 或客户端设置）
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 
 // WorkBuddy ~/.workbuddy/mcp.json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 
 // opencode opencode.json
-{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
 ```
 
 ```toml
 # Codex ~/.codex/config.toml
 [mcp_servers.craft-process]
-url = "http://<mcp-host>:<mcp-port>/mcp"
+url = "http://<mcp-host>:8764/mcp"
 ```
 
 配完验三件事：**新开会话**（工具清单不热加载，这是最常见的失败）、`initialize` 返回 200 且带 `mcp-session-id`、`tools/list` 是 17 个。只过第二件说明壳活着但工具没挂上。
@@ -48,7 +48,7 @@ url = "http://<mcp-host>:<mcp-port>/mcp"
 脚本随技能目录走：`skills/craft-process-workbench/scripts/craft_flow.py`；仓库检出时用 `tools/craft_flow.py`（同一实现的兼容入口）。先把地址验通：
 
 ```bash
-export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
+export CRAFT_BACKEND_URL=http://<backend-host>:5199
 python tools/craft_flow.py health
 python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py wait

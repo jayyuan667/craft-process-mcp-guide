@@ -40,7 +40,7 @@ MCP client ──(Streamable HTTP)──> MCP shell (FastAPI/uvicorn)
   "mcpServers": {
     "craft-process": {
       "type": "http",
-      "url": "http://<mcp-host>:<mcp-port>/mcp"
+      "url": "http://<mcp-host>:8764/mcp"
     }
   }
 }

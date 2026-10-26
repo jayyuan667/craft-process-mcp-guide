@@ -9,7 +9,7 @@
 地址按 `--backend`（写在子命令前）→ `CRAFT_BACKEND_URL` → `~/.config/craft-process/endpoints.json` 的顺序取。先验通再干活：
 
 ```bash
-export CRAFT_BACKEND_URL=http://<backend-host>:<backend-port>
+export CRAFT_BACKEND_URL=http://<backend-host>:5199
 python scripts/craft_flow.py health              # 200 且 service 对得上
 
 python scripts/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
@@ -65,26 +65,26 @@ python scripts/craft_flow.py export process-card.xlsx
 Claude 桌面端 / Claude Code（项目 `.mcp.json` 或客户端设置）：
 
 ```json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 ```
 
 Codex `~/.codex/config.toml`：
 
 ```toml
 [mcp_servers.craft-process]
-url = "http://<mcp-host>:<mcp-port>/mcp"
+url = "http://<mcp-host>:8764/mcp"
 ```
 
 WorkBuddy `~/.workbuddy/mcp.json`（或 `~/.workbuddy/.mcp.json`）：
 
 ```json
-{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcpServers": {"craft-process": {"type": "http", "url": "http://<mcp-host>:8764/mcp"}}}
 ```
 
 opencode `opencode.json`：
 
 ```json
-{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:<mcp-port>/mcp"}}}
+{"mcp": {"craft-process": {"type": "remote", "url": "http://<mcp-host>:8764/mcp"}}}
 ```
 
 Codex 与 opencode 的键名各版本有差异，写之前对一眼它们的文档；Claude 与 WorkBuddy 用同一个 `mcpServers` 形状。

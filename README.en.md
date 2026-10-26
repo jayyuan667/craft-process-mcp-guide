@@ -27,7 +27,7 @@ The important part: the shell and the backend are separate processes and may not
   "mcpServers": {
     "craft-process": {
       "type": "http",
-      "url": "http://<mcp-host>:<mcp-port>/mcp"
+      "url": "http://<mcp-host>:8764/mcp"
     }
   }
 }
