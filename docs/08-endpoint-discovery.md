@@ -25,7 +25,7 @@ MCP 壳和业务后端是两个服务。壳的地址写进客户端配置就够�
 
 **1. 环境变量。** `CRAFT_BACKEND_URL` 如果已设置，直接用。
 
-**2. 本机配置。** `LOCAL.endpoints.md`、`~/.config/craft-process/endpoints.json`，或部署方给你的接入单。这一条只对配过的人有效。
+**2. 本机配置。** `~/.config/craft-process/endpoints.json`（CLI 读它），或部署方给你的接入单。`LOCAL.endpoints.md` 只能当人工备忘——机器不读。
 
 接入单就两个键，一次配好，以后所有客户端都读它：
 

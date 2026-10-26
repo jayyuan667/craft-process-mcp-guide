@@ -14,7 +14,7 @@
 
 `<mcp-host>` 与 `<backend-host>` 不在仓库里。按顺序试，别跳步、别扫网段：
 
-1. 读 `LOCAL.endpoints.md`（本机私有，已被 `.gitignore` 排除）或 `~/.config/craft-process/endpoints.json`。
+1. 读 `~/.config/craft-process/endpoints.json` 的 `backend`（CLI 也只认这个文件）。手写的 `LOCAL.endpoints.md` 只是给人看的备忘，**CLI 不读它**，别把地址只写在里面。
 2. 读环境变量 `CRAFT_MCP_URL` / `CRAFT_BACKEND_URL`。
 3. 调 `craft_health`，看返回里有没有 `backend_url`（打了 [patch 10](../patches/10-backend-address-discovery.md) 才有）。
 4. 用脚本验证短名单，而不是扫端口：
