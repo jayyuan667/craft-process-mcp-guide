@@ -28,7 +28,7 @@ python scripts/craft_flow.py doctor
 
 - **第一次接入**：报「地址 没有」→ 按第 0 节配 MCP 或设 `CRAFT_BACKEND_URL`，再跑一次。
 - **有图纸要跑**：报「任务 无」→ `upload <file>`，然后按第 1–8 节推进。
-- **中途接手**：看它给出的 `revision` 和 `blocking_action`，从对应那节继续；状态看着不对，先读 `craft-process-recovery` 的「恢复后从哪继续」。
+- **中途接手**：看它给出的 `revision` 和 `blocking_action`，从对应那节继续；状态看着不对，先读 `craft-process-recovery`——它会告诉你断在哪层、回哪一节。
 
 ## 分工（别抢服务端的活）
 
