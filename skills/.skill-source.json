@@ -12,8 +12,8 @@
   "docs_commits": {
     "docs/01-architecture.md": "3d100918cc37652b150cfb54449e1a320fc8cebd",
     "docs/03-workflow-and-gates.md": "3d100918cc37652b150cfb54449e1a320fc8cebd",
-    "docs/04-troubleshooting.md": "4e529a099bc006e771c5ce42cae5ab3b61afb955",
-    "docs/05-agent-playbook.md": "c05ee3cfd25c135aff6d58865ba2982ec6e91b09",
+    "docs/04-troubleshooting.md": "3da427200f6e4f9de48f71fbd7478cb224c9ceed",
+    "docs/05-agent-playbook.md": "3da427200f6e4f9de48f71fbd7478cb224c9ceed",
     "docs/08-endpoint-discovery.md": "ddb1861f528634c8bc7d9659d2892a1a60278109",
     "docs/11-portability.md": "3840f062ea73d285f86c59dd22470fefa6eac230"
   }
