@@ -88,3 +88,4 @@ python scripts/craft_flow.py doctor
 ## 事实源
 
 `https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十五条故障的完整版、`docs/05` 正常流程与分工、`docs/01` 分层排障、`docs/08` 地址发现。冲突时以仓库为准。
+
