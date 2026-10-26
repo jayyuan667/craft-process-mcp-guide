@@ -156,20 +156,20 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 
 **422 可以提前避免。** 候选列表里已经带 `required_features` 与 `missing`：选之前扫一眼，缺哪个结构当场问人，别等提交被拒。实测把 `SQUARE` 提前问清后，推荐模板第一次就是 `complete`，省掉一整趟往返。
 
-### 候选为 0：是库空，不是选错
+### 候选为 0：没有模板进池，不是选错
 
-`decision.candidates == []`，同时 `manual_filter.before_count == 0`、`after_count == 0`、`relaxations == []`——匹配引擎手上一个模板都没有。这不是「分数不够」，也不是「被条件过滤掉了」。
+`decision.candidates == []`，同时 `manual_filter.before_count == 0`、`after_count == 0`、`relaxations == []`——匹配引擎没有拿到任何模板。这不是「分数不够」，也不是被普通条件筛掉。
 
 两种空要分清：
 
 | 现象 | 含义 | 动作 |
 | --- | --- | --- |
 | 候选非空，但每项都带 `missing` | 有模板，缺结构判断 | 回图确认结构，presence 后重跑 match |
-| 候选为空且 `before_count == 0` | 这个 enterprise / library 没有模板 | 停；找部署方导入模板库，或换有库的实例 |
+| 候选为空且 `before_count == 0` | 没有模板进候选池：库可能为空，也可能没有这张图所属系列的模板 | 停；问部署方这个件有没有模板，或换有库的实例 |
 
 不要做的事：不要编模板号；不要为了让 `match` 有输出反复改 presence（实测 5 种结构组合全为 0，包括「仅螺纹」这种最简组合）；不要把 `relaxations == []` 读成「放宽条件就能匹配」——池子空的时候它无话可说。
 
-排查顺序：先确认 `library_key`（默认 `default`）和 enterprise 指向的是不是你以为的那个库；再看是不是换了实例而后端状态还指着旧 job；两者都对，就是库没导。
+排查顺序：先确认 `library_key`（默认 `default`）和 enterprise 指向的是不是你以为的那个库；再看是不是换了实例而后端状态还指着旧 job；两者都对仍是 0，就按「这个件没有对应模板」处理。**同一个实例可以有别的件的模板**（实测同一天另一张图匹配到了同图号模板），所以不要从这张图的 0 推断整个库是空的——服务端不暴露库存清单，只能问。
 
 停下来的正确产出：把 `job_id`、`before_count`、当前 `revision`、已确认的特征列表交给部署方。库就绪后重跑 `match` 即可，**特征复核不用重做、图纸不用重传**。
 

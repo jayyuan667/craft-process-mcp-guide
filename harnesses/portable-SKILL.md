@@ -180,7 +180,7 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 
 **选之前先看 `required_features` / `missing`**，缺哪个结构当场问人，别等 422 顶回来——「模板缺少关键特征：SQUARE」不是让你换模板，是要一个结构判断。
 
-**候选为空就是库空。** `candidates == []` 且 `manual_filter.before_count == 0`：这个 library 一个模板都没有，不是分数不够、也不是被条件筛掉。不要编模板号，也不要靠反复改 presence 试探（实测 5 种结构组合全 0）。停，把 `job_id` / `before_count` / `revision` / 已确认特征交给部署方导入模板库，或换有库的实例；恢复后重跑 `match`，复核结果保留。
+**候选为空 = 没有模板进池。** `candidates == []` 且 `manual_filter.before_count == 0`：不是分数不够，也不是被普通条件筛掉。可能是库空，也可能是没有这个件的模板——接口不暴露库存，别断言整个库为空（同一实例上别的图可能匹配得到）。不要编模板号，也不要靠反复改 presence 试探（实测 5 种结构组合全 0）。停，把 `job_id` / `before_count` / `revision` / 已确认特征交给部署方，问这个件有没有模板；恢复后重跑 `match`，复核结果保留。
 
 ```json
 {"template_id": "<template-id>", "revision": 5}
