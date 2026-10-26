@@ -10,9 +10,9 @@
     "docs/11-portability.md"
   ],
   "docs_commits": {
-    "docs/01-architecture.md": "d89cc0700014679d2a728224ae0447cd87e0aec2",
-    "docs/03-workflow-and-gates.md": "d89cc0700014679d2a728224ae0447cd87e0aec2",
-    "docs/04-troubleshooting.md": "b5ead434fec58a2367bdafa66c1f03a29ad8d28c",
+    "docs/01-architecture.md": "3d100918cc37652b150cfb54449e1a320fc8cebd",
+    "docs/03-workflow-and-gates.md": "3d100918cc37652b150cfb54449e1a320fc8cebd",
+    "docs/04-troubleshooting.md": "3d100918cc37652b150cfb54449e1a320fc8cebd",
     "docs/05-agent-playbook.md": "29c99660f3005628b25759e3dc8febd8db991f81",
     "docs/08-endpoint-discovery.md": "ddb1861f528634c8bc7d9659d2892a1a60278109",
     "docs/11-portability.md": "ddb1861f528634c8bc7d9659d2892a1a60278109"
