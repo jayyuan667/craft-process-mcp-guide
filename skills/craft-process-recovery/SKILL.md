@@ -1,6 +1,6 @@
 ---
 name: "craft-process-recovery"
-description: "craft-process 工艺工作台出错时的排查与恢复：工具不出现、initialize 通但工具为空、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址。工具调用失败或状态卡住时使用。"
+description: "craft-process 工艺工作台出错时的排查与恢复：工具不出现、initialize 通但工具为空、409、选模板超时、特征表被冲掉、派生值覆盖确认值、改卡 0 工时变空、丢了 job_id、工作台串号、找不到地址、复核异常变慢。工具调用失败或状态卡住时使用。"
 ---
 
 # craft-process 故障恢复
@@ -49,6 +49,7 @@ description: "craft-process 工艺工作台出错时的排查与恢复：工具�
 | 卡里的公差与确认值不一致 | 派生规则在生成阶段重算 | 用 `process-card-edit` 改回，不要重跑复核 |
 | 工作台返回的是另一个任务 | 部署把状态放进程内存，多 worker 落到了别的 worker | **写之前停下**；每次写后比对 `job_id` |
 | 上传超时、没有 `job_id` | 客户端先放弃，但任务可能已建 | 见下节「上传状态未知」 |
+| 复核分析明显变慢，单项核对花了几分钟 | 在重做服务端已完成的提取与换算 | 停手：只做 20–30 秒矛盾扫视，最多切 1–2 张图；返回体里已有字段的直接用 |
 
 ## 上传状态未知
 
@@ -100,6 +101,7 @@ description: "craft-process 工艺工作台出错时的排查与恢复：工具�
 
 ## 不要做
 
+- 不要重做服务端已给出的提取、换算或模板判断（见 workbench 的「分工」一节）
 - 不要在错误的层重启（会毁证据）
 - 不要循环重发同一载荷
 - 不要扫端口找地址（详见仓库 docs/08）
@@ -108,5 +110,5 @@ description: "craft-process 工艺工作台出错时的排查与恢复：工具�
 
 ## 事实源
 
-`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十三条故障的完整版、`docs/11` 接入配置与验证三步、`docs/01` 架构与分层排障、`docs/08` 地址发现。与本 skill 冲突时以仓库为准，并回报冲突。
+`https://github.com/jayyuan667/craft-process-mcp-guide`：`docs/04` 十三条故障的完整版、`docs/05 §5.5` 分工与耗时预算、`docs/11` 接入配置与验证三步、`docs/01` 架构与分层排障、`docs/08` 地址发现。与本 skill 冲突时以仓库为准，并回报冲突。
 

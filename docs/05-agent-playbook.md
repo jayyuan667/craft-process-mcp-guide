@@ -68,6 +68,29 @@ python tools/craft_upload.py --file drawing.png --backend "$CRAFT_BACKEND_URL" -
 
 必看 `revision`、`current_stage`、`blocking_action`，并核对返回体的 `job_id` 等于你请求的 id。**不等就停**，见 [04 第 9 条](04-troubleshooting.md)。
 
+## 5.5 分工：服务端做完的，不要重做
+
+这条和闸门同等重要——**重复分析不会让卡更准，只会把一次复核拖成几分钟**。
+
+服务端已经给出、且你**不该再算一遍**的东西：
+
+- 特征：`value`、`confidence`、`role_cn`、`evidence`（含 `location` 部位）、`validation`。
+- 槽位：`candidate_value`、`nominal`、`upper_deviation`、`lower_deviation`、`evidence`、`binding_reason`。
+- 模板：`candidates`、`required_features`、`missing`、`match_strength`、`reference_drawing`。
+- 工艺卡：`operations`、`工时`、派生值。
+
+对应的禁令：
+
+- **不要重新 OCR 或量图。** 你已经拿到名义尺寸和上下偏差，再放大去读一遍数字是重复劳动。
+- **不要重算派生值。** 车/磨/镗余量、总长、热处理时间由服务端算；你算一遍只会引入第二个数。
+- **不要逐条切图核对。** 矛盾扫视是 20–30 秒的**抽查**，不是全量校对；只有被质疑的那一处值得切图，一次复核最多切 1–2 张。
+- **不要重复读工作台。** 一次 `dump` 的返回体足够走完当前阶段；写操作前读一次 `revision` 即可，不要每步都全量重读。
+- **不要把返回体再格式化一遍。** `display_value` 的写法就是提交时的写法。
+
+代价是有数的：识别 70–90 秒、选模板 48–60 秒，这两段是服务端耗时，你省不掉；**agent 侧的复核与提交应当控制在 1 分钟内**。如果你发现自己在核对第三处公差、或者已经切了第三张图，说明跑偏了——停下，把已有字段列给人。
+
+判据一句话：**你要做的动作，如果返回体里已经有对应字段，就停手。** 你的活是判断、提问和推进，不是重新提取。
+
 ## 6. 特征复核（最容易毁数据的一步）
 
 `POST /feature-review` 是**整表替换**。四步不能省：
