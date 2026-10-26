@@ -22,6 +22,11 @@ python tools/craft_flow.py upload drawing.png
 python tools/craft_flow.py status
 python tools/craft_flow.py previews --download ./previews
 python tools/craft_flow.py review --answers review.json
+python tools/craft_flow.py presence --list
+python tools/craft_flow.py presence --answers presence.json
+python tools/craft_flow.py match
+python tools/craft_flow.py select <template-id>
+python tools/craft_flow.py slots --values slots.json
 python tools/craft_flow.py finalize
 python tools/craft_flow.py edit --operations ops.json
 python tools/craft_flow.py export process-card.xlsx
@@ -36,7 +41,7 @@ python tools/craft_flow.py export process-card.xlsx
 
 另外三处小保护：`doctor` 打印任务年龄，超过两小时提示可能是残留任务；`slots` 提交前做工序语义核对（磨削槽位拿到「留余量」候选会警告）；`export` 回读 XLSX 行数，和工序数对一下。
 
-退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 状态不一致，`5` 四字段没过（不导出）。
+退出码：`0` 正常，`2` 网络或超时，`3` 服务端拒绝，`4` 闸门没通过（状态不一致、presence 缺项、非人工来源），`5` 四字段没过（不导出）。
 
 ## craft_upload.py
 

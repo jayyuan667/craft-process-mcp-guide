@@ -18,6 +18,7 @@ python scripts/craft_flow.py wait                 # 等到 extracted
 python scripts/craft_flow.py dump                 # 工作台落盘 JSON
 python scripts/craft_flow.py previews --download ./previews   # 复核单要用的图
 python scripts/craft_flow.py review   --answers review.json
+python scripts/craft_flow.py presence --list      # 结构项清单，逐条问人
 python scripts/craft_flow.py presence --answers presence.json
 python scripts/craft_flow.py match                # 看候选与参考图号
 python scripts/craft_flow.py select <template-id>
@@ -27,7 +28,7 @@ python scripts/craft_flow.py edit     --operations ops.json   # 生成后改行
 python scripts/craft_flow.py export process-card.xlsx
 ```
 
-`status` 是唯一的入口探针：阶段、`blocking_action`、计数、下一步。
+`doctor` 是首次入口（地址、后端、任务、下一步一次看完）；`status` 是阶段探针：`blocking_action`、计数、下一步。
 
 ### answers 文件由人产出
 
@@ -107,7 +108,7 @@ Codex 与 opencode 的键名各版本有差异，写之前对一眼它们的文�
 | WorkBuddy | `~/.workbuddy/skills/<name>/SKILL.md`（也认 `~/.agents/skills/`） |
 | opencode | `AGENTS.md` + 技能目录 |
 
-技能负责「什么时候做什么、判据是什么」，CLI 负责「怎么做」。两者一起用最省事：技能里写 `python tools/craft_flow.py status`，模型不需要记 REST 路径。
+技能负责「什么时候做什么、判据是什么」，CLI 负责「怎么做」。两者一起用最省事：技能里写 `python scripts/craft_flow.py doctor`，模型不需要记 REST 路径。
 
 ## 三、什么都没有：一份单文件
 

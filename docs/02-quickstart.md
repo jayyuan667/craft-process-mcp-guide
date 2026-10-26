@@ -109,6 +109,18 @@ curl -sS "http://<backend-host>:5199/api/jobs/<job_id>/workbench?detail=full"
 
 **每一处确认都应有人看过。** 批量代替人确认不属于流程的一部分；要人确认时按 [09](09-asking-humans.md) 的格式问。
 
+## 5.5 结构特征与分支条件
+
+`craft_feature_presence` / `POST /feature-presence` 决定「有哪些结构」。它比尺寸更早影响结果——**结构决定候选池，尺寸只影响槽位**。
+
+```bash
+python tools/craft_flow.py presence --list      # 含低频项，逐条问人
+```
+
+**结构判断必须逐条问人。** `presence --list` 列出服务端认识的全部项（含 `low_frequency` 默认 `no` 的）与当前值；提交文件要覆盖全部项并写 `"source": "human"`，缺项 CLI 会拒绝。分支条件（材料 / 毛坯 / 路线前缀）图纸上通常没有，同样只能问人。
+
+字段用法、422 的两种成因和「先结构后尺寸」的理由见 [05 §6.5](05-agent-playbook.md)。
+
 ## 6. 模板匹配与选择
 
 `craft_template_match` 计算候选，是预览。**候选不等于已选**，没选就生成会返回 `409`。
