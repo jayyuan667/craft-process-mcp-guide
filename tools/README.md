@@ -19,10 +19,12 @@ pip install Pillow       # 只有 review_sheet.py 需要
 python tools/craft_flow.py doctor    # 首次使用：地址/后端/任务/下一步一次看完
 python tools/craft_flow.py health    # 验地址：200 且 service 名对得上
 python tools/craft_flow.py upload drawing.png
+python tools/craft_flow.py adopt <job_id>   # 接管外部创建的 job（curl 直传后没有本地状态）
 python tools/craft_flow.py status
 python tools/craft_flow.py previews --download ./previews
 python tools/craft_flow.py review --answers review.json
 python tools/craft_flow.py presence --list
+python tools/craft_flow.py presence --questions q.json
 python tools/craft_flow.py presence --answers presence.json
 python tools/craft_flow.py match
 python tools/craft_flow.py select <template-id>

@@ -28,6 +28,11 @@ Answers file shapes (all keys optional; anything omitted is left untouched):
 
     review.json    {"overrides": {"overall_length:1": {"value": "1786",
                                                        "status": "confirmed"}}}
+    presence.json  {"source": "human",
+                    "features": {"KEYWAY": "yes", "SQUARE": "no"},
+                    "branch_conditions": {"material": "<从服务端选项里选>",
+                                          "billet_type": "<idem>",
+                                          "route_prefix": "<idem>"}}
     presence.json  {"features": {"KEYWAY": "yes", "SQUARE": "no"},
                     "branch_conditions": {"material": "GH901",
                                           "billet_type": "大锻件",
@@ -189,7 +194,15 @@ def feature_counts(wb: dict) -> dict:
 
 
 def pending_features(wb: dict) -> int:
-    return int(feature_counts(wb).get("needs_review") or 0)
+    """Feature-dimension pending count; slot counts reuse the same key after review."""
+    review_counts = (wb.get("review") or {}).get("counts") or {}
+    if "needs_review" in review_counts:
+        return int(review_counts.get("needs_review") or 0)
+    # Top-level counts are the slot dimension once the card exists; only trust
+    # them as feature counts while the server is still blocking on features.
+    if wb.get("blocking_action") == "confirm_features":
+        return int((wb.get("counts") or {}).get("needs_review") or 0)
+    return 0
 
 
 def banner(wb: dict) -> None:
@@ -267,6 +280,30 @@ def cmd_upload(args) -> int:
     print(f"job_id   {job}")
     print(f"耗时     {elapsed}s  HTTP {status}")
     print("下一步  craft_flow.py wait")
+    return 0
+
+
+def cmd_adopt(args) -> int:
+    """Take over a job created outside the CLI (curl, another machine)."""
+    base = backend_url()
+    if not base:
+        return print_err("没有后端地址：设置 CRAFT_BACKEND_URL 或 --backend。", 1)
+    job = args.job_id.strip()
+    wb = workbench(job)
+    files = (wb.get("drawing") or {}).get("files") or []
+    save_state({
+        "job_id": job,
+        "backend": base,
+        "drawing": files[0].get("name") if files else "",
+        "revision": wb.get("revision"),
+        "stage": wb.get("current_stage"),
+        "status": wb.get("stage_status"),
+        "created_at": now_iso(),
+        "adopted": True,
+    })
+    print(f"已接管   {job}")
+    banner(wb)
+    print("说明     本地状态已写入，status / dump / presence 现在可用")
     return 0
 
 
@@ -351,17 +388,57 @@ def cmd_presence(args) -> int:
     wb = refresh(job)
     catalog = structural_catalog(wb)
 
+    if args.questions:
+        items = []
+        for item in catalog:
+            items.append({
+                "id": item["feature_id"],
+                "label": item["name"] or item["feature_id"],
+                "value": "有" if item["presence"] == "yes" else "无",
+                "evidence": item["evidence"] or f"服务端当前判断：{item['presence']}",
+                "type": "presence",
+            })
+        for bc in (wb.get("review") or {}).get("branch_conditions") or []:
+            options = [o.get("value") for o in bc.get("options") or [] if o.get("value")]
+            items.append({
+                "id": bc.get("field"),
+                "label": bc.get("name") or bc.get("field"),
+                "value": bc.get("value") or (options[0] if len(options) == 1 else ""),
+                "evidence": f"可选：{' / '.join(options) or '（服务端未给选项）'}；"
+                            "图纸上没有，只能从这些选项里选",
+                "type": "choice",
+                "options": options,
+            })
+        payload = {
+            "title": "结构特征与分支条件确认",
+            "note": "逐项选择，不要留空；选项来自服务端，不要另填。",
+            "items": items,
+        }
+        out = Path(args.questions).expanduser()
+        out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"已生成   {out}（{len(items)} 项）")
+        print("渲染     python tools/ask.py render --in %s --format html > questions.html" % out)
+        return 0
+
     if args.list:
         if not catalog:
             print("服务端没有暴露结构特征清单；直接读工作台的 auto_features / low_frequency。")
-            return 0
-        print(f"结构特征 {len(catalog)} 项（当前值是服务端的，逐条问人后再改）")
-        for item in catalog:
-            evidence = f" · {item['evidence']}" if item["evidence"] else ""
-            print(f"  {item['feature_id']:<22}{item['name']:<8}"
-                  f" 当前={item['presence']:<7} 来源={item['source']}{evidence}")
-        print('answers 形状：{"source": "human", "features": {"SQUARE": "yes", ...}, '
-              '"branch_conditions": {...}}')
+        else:
+            print(f"结构特征 {len(catalog)} 项（当前值是服务端的，逐条问人后再改）")
+            for item in catalog:
+                evidence = f" · {item['evidence']}" if item["evidence"] else ""
+                print(f"  {item['feature_id']:<22}{item['name']:<8}"
+                      f" 当前={item['presence']:<7} 来源={item['source']}{evidence}")
+
+        branches = (wb.get("review") or {}).get("branch_conditions") or []
+        if branches:
+            print("\n分支条件（只能从选项里选，不能照抄示例、不要沿用别的 job）")
+            for bc in branches:
+                options = [o.get("value") for o in bc.get("options") or [] if o.get("value")]
+                print(f"  {bc.get('field'):<12}{bc.get('name', ''):<8}"
+                      f" 当前={bc.get('value') or '—'}  选项={ ' / '.join(options) or '未提供' }")
+        print('\nanswers 形状：{"source": "human", "features": {"SQUARE": "yes", ...}, '
+              '"branch_conditions": {"material": "<从选项里选>", ...}}')
         return 0
 
     if not args.answers:
@@ -389,6 +466,16 @@ def cmd_presence(args) -> int:
     if unresolved_branch:
         return print_err(
             "分支条件还没给全：" + ", ".join(unresolved_branch) + "。图纸上通常没有，必须问人。", 4)
+
+    allowed = {bc.get("field"): [o.get("value") for o in bc.get("options") or [] if o.get("value")]
+               for bc in (wb.get("review") or {}).get("branch_conditions") or []}
+    invalid_branch = [f"{field}={value}（可选：{' / '.join(allowed[field])}）"
+                      for field, value in branch.items()
+                      if allowed.get(field) and value not in allowed[field]]
+    if invalid_branch:
+        return print_err(
+            "分支条件的值不在服务端选项里——不能自编，也不要照抄示例：\n  "
+            + "\n  ".join(invalid_branch), 4)
 
     payload = {
         "revision": wb.get("revision"),
@@ -858,6 +945,10 @@ def main() -> int:
     up.add_argument("--ledger", default=DEFAULT_LEDGER)
     up.set_defaults(func=cmd_upload)
 
+    ad = sub.add_parser("adopt", help="接管已存在的 job（curl 直传后没有本地状态时）")
+    ad.add_argument("job_id")
+    ad.set_defaults(func=cmd_adopt)
+
     w = sub.add_parser("wait", help="等到 extracted")
     w.add_argument("--timeout", type=int, default=300)
     w.add_argument("--interval", type=float, default=6)
@@ -874,6 +965,7 @@ def main() -> int:
     p = sub.add_parser("presence", help="结构特征与分支条件（必须覆盖全部项）")
     p.add_argument("--answers", help="人工确认后的答案文件；--list 时不需要")
     p.add_argument("--list", action="store_true", help="列出全部结构特征与当前值，逐条问人用")
+    p.add_argument("--questions", metavar="OUT", help="导出可渲染的问题清单（ask.py 可生成可点选页面）")
     p.set_defaults(func=cmd_presence)
 
     m = sub.add_parser("match", help="算候选模板")

@@ -136,7 +136,7 @@ python tools/review_sheet.py --workbench wb.json --image input-1.png --out sheet
 ```json
 {"source": "human",
  "features": {"THREAD": "yes", "SQUARE": "no", "BALL_HEAD_KEYWAY": "yes"},
- "branch_conditions": {"material": "GH901", "billet_type": "中小锻件", "route_prefix": "28F"}}
+ "branch_conditions": {"material": "<从服务端选项里选>", "billet_type": "<idem>", "route_prefix": "<idem>"}}
 ```
 
 CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`、值不是 yes/no。REST 载荷形状不同：`features` 是列表 `[{"feature_id", "presence"}]`，传对象会 422「特征选择格式不正确」。
@@ -145,7 +145,9 @@ CLI 会拒绝三种情况：缺项（列出缺哪些）、没有 `source: human`
 
 1. **用业务键，不用框 id。** `THREAD` / `SQUARE` / `END_OUTER_SQUARE` / `BALL_HEAD_KEYWAY` 是提交用的键；`review.features` 里的 `overall_length:1` 是尺寸项，`yolo:1:1:四方` 是检测框 id，拿它提交会 422「特征不属于当前任务」。
 2. **框错不等于特征不存在。** 检测框落在标注区只说明框错了；真实案例里键槽的框落在尺寸文字区，但技术要求写明「键槽及周围 5mm 不氮化」——框该否，特征该留。
-3. **分支条件图上通常没有**，必须问人。选项由服务端给，不要自己编，也不要拿 `unknown` 顶替业务决定。
+3. **分支条件是选择题，不是填空题。** 材料 / 毛坯 / 路线前缀的合法值由 `review.branch_conditions[].options` 给出，`presence --list` 会连选项一起打印。把选项**原样列全**给人选——不要截断、不要只列前几个；**不要自己编、不要沿用上一个 job 的值、不要照抄文档示例**（文档示例是占位符）。提交不在选项里的值，CLI 会以退出码 4 拒绝并列出可选值。若图纸上的材料不在选项里，那是服务端的枚举缺口，交部署方补，不要拿最像的顶替。
+
+   交互上给选择而不是填空：有控件就用下拉/单选，没有就编号列表。要现成页面时 `craft_flow.py presence --questions q.json`，再 `tools/ask.py render --in q.json --format html`。
 4. **先结构、后尺寸。** 结构决定候选池，尺寸只影响槽位。能先提 presence 就先提；服务端要求先复核尺寸就按 `blocking_action` 走，但匹配后一旦发现池里没有当前图号，立刻回 presence。
 5. 提交会顺带触发匹配，反复改结构判断会让 `revision` 一路涨，别拿它当试错按钮。
 

@@ -14,11 +14,13 @@ python scripts/craft_flow.py doctor             # 首次使用：地址/后端/�
 python scripts/craft_flow.py health              # 200 且 service 对得上
 
 python scripts/craft_flow.py upload drawing.png   # 记账 → 上传 → 记下 job_id
+python scripts/craft_flow.py adopt <job_id>       # 接管 curl/别处建的 job，补本地状态
 python scripts/craft_flow.py wait                 # 等到 extracted
 python scripts/craft_flow.py dump                 # 工作台落盘 JSON
 python scripts/craft_flow.py previews --download ./previews   # 复核单要用的图
 python scripts/craft_flow.py review   --answers review.json
 python scripts/craft_flow.py presence --list      # 结构项清单，逐条问人
+python scripts/craft_flow.py presence --questions q.json  # 生成可点选问题清单
 python scripts/craft_flow.py presence --answers presence.json
 python scripts/craft_flow.py match                # 看候选与参考图号
 python scripts/craft_flow.py select <template-id>

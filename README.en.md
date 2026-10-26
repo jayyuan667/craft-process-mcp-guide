@@ -93,7 +93,7 @@ LICENSE / NOTICE           Apache-2.0
 docs/01-architecture.md    two-layer architecture, security boundary and layered triage
 docs/02-quickstart.md      connect, upload, run
 docs/03-workflow-and-gates.md  gates, value provenance, red lines
-docs/04-troubleshooting.md symptom-driven runbook (16 entries)
+docs/04-troubleshooting.md symptom-driven runbook (17 entries)
 docs/05-agent-playbook.md  actions, criteria and prohibitions for agents
 docs/06-optimization-plan.md  phased plan, acceptance criteria, patch status
 docs/07-field-notes.md        one real run, with evidence and timeline

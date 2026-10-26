@@ -1,6 +1,6 @@
 ---
 name: "craft-process-workbench"
-description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、结构判断、模板选择、槽位确认、出卡、改卡与导出。技能自带 CLI，下载后给一个后端地址即可跑，不必先配 MCP。结构特征必须逐条问人，presence 缺项或非人工来源会被拒绝；未确认特征时 finalize/export 拒绝出卡。首次使用先跑 doctor；出错时改用 craft-process-recovery。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
+description: "把二维图纸跑成模板工艺卡：先确认 MCP 是否接上（含 Claude/Codex/WorkBuddy/opencode 配置），再走上传、特征复核、结构判断、模板选择、槽位确认、出卡、改卡与导出。技能自带 CLI，下载后给一个后端地址即可跑，不必先配 MCP。结构特征与分支条件必须逐条问人，分支值只能从服务端选项里原样列全后选；可一键生成可点选问题清单。presence 缺项或非人工来源会被拒绝。首次使用先跑 doctor；curl 直传后用 adopt 接管。提到 craft-process、工艺卡、阀杆工艺、模板匹配、二维图纸转工艺、怎么接 MCP 时使用。"
 ---
 
 # craft-process 工艺工作台
@@ -96,10 +96,12 @@ python scripts/craft_flow.py doctor      # 首次使用：地址/后端/任务/�
 python scripts/craft_flow.py health      # 只验地址：200 且 service 名对得上
 python scripts/craft_flow.py status      # 阶段 / 阻断点 / 下一步
 python scripts/craft_flow.py upload drawing.png
+python scripts/craft_flow.py adopt <job_id>   # 接管 curl/别处建的 job
 python scripts/craft_flow.py wait
 python scripts/craft_flow.py previews --download ./previews
 python scripts/craft_flow.py review --answers review.json
 python scripts/craft_flow.py presence --list
+python scripts/craft_flow.py presence --questions q.json
 python scripts/craft_flow.py presence --answers presence.json
 python scripts/craft_flow.py match
 python scripts/craft_flow.py select <template-id>
@@ -109,7 +111,7 @@ python scripts/craft_flow.py edit --operations ops.json
 python scripts/craft_flow.py export process-card.xlsx
 ```
 
-`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"source": "human", "features": {"KEYWAY": "yes"}, "branch_conditions": {...}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
+`answers` / `values` 文件就是人拍板的结果：`{"overrides": {"overall_length:1": {"value": "1786"}}}`、`{"source": "human", "features": {"KEYWAY": "yes"}, "branch_conditions": {"material": "<从选项里选>"}}`、`{"values": {"<template-id>-30-0": "φ77，0，-0.025"}}`。
 
 没有 CLI 时，下面各节是它背后的 REST 契约，照着手打。
 
@@ -123,7 +125,7 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 
 只收 PDF / PNG / JPG。返回 `202` + 32 位十六进制 `job_id`。
 
-**发字节之前先把 attempt 写进账本**（`~/.config/craft-process/jobs.jsonl`）：`GET /api/jobs` 返回 `405`，没有任务列表，`job_id` 一丢就只能靠账本对账。
+**发字节之前先把 attempt 写进账本**（`~/.config/craft-process/jobs.jsonl`）：`GET /api/jobs` 返回 `405`，没有任务列表，`job_id` 一丢就只能靠账本对账。用 curl 直传后，跑 `adopt <job_id>` 补本地状态，否则 status / dump / presence 都不认这个任务。
 
 ## 2. 等识别
 
@@ -171,12 +173,14 @@ curl -sS -X POST "$CRAFT_BACKEND_URL/api/jobs" -F "files=@drawing.png"
 python scripts/craft_flow.py presence --list
 ```
 
+要给人可点选的界面：`presence --questions q.json` → `python tools/ask.py render --in q.json --format html > q.html`。分支条件必须做成选择题（下拉或编号选项），**不要开放式问「材料是什么」再让人手打**。
+
 提交的是人给的答案，且必须覆盖全部项、带来源：
 
 ```json
 {"source": "human",
  "features": {"THREAD": "yes", "SQUARE": "no", "BALL_HEAD_KEYWAY": "yes"},
- "branch_conditions": {"material": "<material>", "billet_type": "<billet-type>", "route_prefix": "<route-prefix>"}}
+ "branch_conditions": {"material": "<从服务端选项里选>", "billet_type": "<idem>", "route_prefix": "<idem>"}}
 ```
 
 命令行会拦三种：缺项（列出缺哪些）、没有 `source: human`、值不是 yes/no。不要绕过——缺项通常就是有人没被问过。
@@ -187,7 +191,7 @@ REST 形状不同：`POST /feature-presence` 的 `features` 是列表 `[{"featur
 
 - 用业务键（`THREAD` / `SQUARE` / `END_OUTER_SQUARE` / `BALL_HEAD_KEYWAY`），不要用尺寸 id（`overall_length:1`）或 YOLO 框 id（`yolo:1:1:四方`），后者会 422「特征不属于当前任务」。
 - **YOLO 框错 ≠ 特征不存在。** 框落在标注区只能说明框错了，不能当否定依据。
-- 分支条件图上通常没有，必须问人；别指望 `unknown` 兜底。
+- 分支条件是**选择题**：`presence --list` 会打印 `review.branch_conditions[].options`，把选项**原样列全**给人选——不要截断、不要只列前两个、不要自己编、不要沿用上一个 job 的值、不要照抄示例。提交不在选项里的值会被 CLI 拒绝（退出码 4）。
 - **先结构、后尺寸**：结构决定候选池，尺寸只影响槽位。能先提 presence 就先提；服务端要求先复核尺寸就按 `blocking_action` 走，但匹配后一旦发现池里没有当前图号，立刻回 presence。
 - 提交会顺带触发匹配，反复改结构判断会让 `revision` 一路涨。
 
